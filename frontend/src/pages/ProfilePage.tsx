@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Avatar, Tabs, Row, Col, Spin, Empty, Upload, Button, Form, Input, message } from 'antd';
-import { UserOutlined, EditOutlined, StarOutlined } from '@ant-design/icons';
-import { getCurrentUser, updateUserInfo, uploadAvatar, changePassword } from '@services/user';
+import { Card, Avatar, Tabs, Row, Col, Spin, Empty, Button, Form, Input, message } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
+import { updateUserInfo, changePassword } from '@services/user';
 import { useAuthStore } from '@stores/auth';
 import type { User } from '@types';
 
@@ -12,6 +12,8 @@ const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [tabKey, setTabKey] = useState('info');
+  const [infoForm] = Form.useForm();
+  const [passwordForm] = Form.useForm();
 
   const loadUserInfo = async () => {
     if (user) return; // 已经有用户信息
@@ -29,17 +31,6 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     loadUserInfo();
   }, []);
-
-  const handleAvatarUpload = async (file: File) => {
-    try {
-      const response = await uploadAvatar(file);
-      message.success('头像上传成功');
-      return { url: response.data.url };
-    } catch (error) {
-      message.error('上传失败');
-      return { url: '' };
-    }
-  };
 
   const handleInfoSubmit = async (values: Partial<User>) => {
     if (!user) return;
@@ -142,7 +133,7 @@ const ProfilePage: React.FC = () => {
       label: '设置',
       children: (
         <Card title="设置">
-          <Form form={Form.useForm()} layout="vertical" onFinish={handleInfoSubmit} initialValues={user}>
+          <Form form={infoForm} layout="vertical" onFinish={handleInfoSubmit} initialValues={user}>
             <Form.Item label="用户名" name="username">
               <Input readOnly />
             </Form.Item>
@@ -166,7 +157,7 @@ const ProfilePage: React.FC = () => {
 
           <div style={{ marginTop: 32 }}>
             <h3>修改密码</h3>
-            <Form form={Form.useForm()} layout="vertical" onFinish={handlePasswordSubmit}>
+            <Form form={passwordForm} layout="vertical" onFinish={handlePasswordSubmit}>
               <Form.Item
                 name="oldPassword"
                 rules={[{ required: true, message: '请输入旧密码' }]}

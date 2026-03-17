@@ -1,5 +1,5 @@
 // API基础配置
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import type { ApiResponse } from '@types';
 
 // 创建axios实例
@@ -29,7 +29,7 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
-    const { code, message, data } = response.data;
+    const { code, message } = response.data;
 
     // 业务成功
     if (code === 200 || code === 0) {

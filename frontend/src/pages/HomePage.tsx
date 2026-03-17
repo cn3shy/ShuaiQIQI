@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Empty, Spin, Tabs, Input, Card } from 'antd';
-import { SearchOutlined, EyeOutlined, LikeOutlined, CommentOutlined, StarOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import ContentCard from '@components/ContentCard';
 import { getContentList, getHotContent, getRecommendContent } from '@services/content';
 import { Link } from 'react-router-dom';

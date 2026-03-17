@@ -1,59 +1,95 @@
 // 移动端布局组件
-import React from 'react';
-import { Layout, TabBar, Avatar, Badge } from 'antd-mobile';
+import React, { useState } from 'react';
+import { Layout, Tabs, Avatar, Space, Button } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   HomeOutlined,
   CompassOutlined,
   PlusCircleOutlined,
   UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/auth';
+import type { TabsProps } from 'antd';
+import './MobileLayout.css';
+
+const { Header, Content, Footer } = Layout;
 
 const MobileLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { user, clearAuth } = useAuthStore();
+  const [activeKey, setActiveKey] = useState(location.pathname);
 
-  const tabs = [
+  // 监听路由变化同步 TabBar 状态
+  React.useEffect(() => {
+    setActiveKey(location.pathname);
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate('/login');
+  };
+
+  const tabItems: TabsProps['items'] = [
     {
       key: '/',
-      title: '首页',
+      label: '首页',
       icon: <HomeOutlined />,
     },
     {
       key: '/content',
-      title: '发现',
+      label: '发现',
       icon: <CompassOutlined />,
     },
     {
       key: '/content/create',
-      title: '发布',
+      label: '发布',
       icon: <PlusCircleOutlined />,
     },
     {
       key: '/profile',
-      title: '我的',
+      label: '我的',
       icon: <UserOutlined />,
     },
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh', paddingBottom: 50 }}>
-      <Outlet />
-      <TabBar
-        activeKey={location.pathname}
-        onChange={(key) => navigate(key)}
-        safeArea
-      >
-        {tabs.map((item) => (
-          <TabBar.Item
-            key={item.key}
-            icon={item.icon}
-            title={item.title}
-          />
-        ))}
-      </TabBar>
+    <Layout className="mobile-layout">
+      <Header className="mobile-header">
+        <Space>
+          <Avatar size="small" src={user?.avatar}>
+            {user?.username[0]?.toUpperCase()}
+          </Avatar>
+          <span style={{ color: '#fff', fontSize: 16 }}>帅气气</span>
+        </Space>
+      </Header>
+      <Content className="mobile-content">
+        <Outlet />
+      </Content>
+      <Footer className="mobile-footer">
+        <Tabs
+          activeKey={activeKey}
+          onChange={(key) => {
+            setActiveKey(key);
+            navigate(key);
+          }}
+          items={tabItems}
+          size="small"
+          centered
+        />
+        {user && (
+          <Button
+            size="small"
+            block
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            style={{ marginTop: 8 }}
+          >
+            退出登录
+          </Button>
+        )}
+      </Footer>
     </Layout>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Avatar, Button, Space, Form, Input, message } from 'antd';
-import { PlusOutlined, EyeOutlined,LikeOutlined, CommentOutlined, StarOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { LikeOutlined, CommentOutlined, StarOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getContentDetail, likeContent, favoriteContent } from '@services/content';
 import { createComment } from '@services/comment';

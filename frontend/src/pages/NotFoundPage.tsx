@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Result, Button, Space } from 'antd';
+import React from 'react';
+import { Result, Button } from 'antd';
 import { Link } from 'react-router-dom';
 
 /**

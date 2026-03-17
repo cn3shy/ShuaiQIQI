@@ -1,5 +1,5 @@
 // 路由配置
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import React from 'react';
 import MainLayout from '@layouts/MainLayout';
 import MobileLayout from '@layouts/MobileLayout';

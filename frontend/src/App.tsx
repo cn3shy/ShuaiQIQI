@@ -1,11 +1,15 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+// 主应用组件 - 提供路由和全局上下文
+import { RouterProvider } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import { router } from './router';
+import './styles/global.css';
 
 function App() {
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <Outlet />
-    </div>
+    <ConfigProvider locale={zhCN}>
+      <RouterProvider router={router} />
+    </ConfigProvider>
   );
 }
 

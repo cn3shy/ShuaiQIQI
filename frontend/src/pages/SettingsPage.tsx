@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, Upload, Button, Form, Input, message, Avatar, Spin } from 'antd';
 import { UserOutlined, EditOutlined } from '@ant-design/icons';
 import { updateUserInfo, uploadAvatar, changePassword } from '@services/user';

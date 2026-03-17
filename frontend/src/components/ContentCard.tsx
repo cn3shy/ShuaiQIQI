@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Avatar, Space, Tag, Button, Row, Col, Spin } from 'antd';
-import { EyeOutlined, LikeOutlined, CommentOutlined, StarOutlined } from '@ant-design/icons';
+import React from 'react';
+import { Card, Avatar, Space, Tag, Button, Row, Col } from 'antd';
+import { LikeOutlined, CommentOutlined, StarOutlined } from '@ant-design/icons';
 import type { Content } from '@types';
 import { Link } from 'react-router-dom';
 

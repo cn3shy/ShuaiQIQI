@@ -1,6 +1,6 @@
 // 认证服务API
 import request from './api';
-import type { LoginRequest, RegisterRequest, AuthResponse, User } from '@types';
+import type { LoginRequest, RegisterRequest, AuthResponse } from '@types';
 
 // 用户注册
 export const register = (data: RegisterRequest) => {
