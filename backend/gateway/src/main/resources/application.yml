@@ -34,4 +34,4 @@ spring:
         - id: comment-service
           uri: lb://comment-service
           predicates:
-            - Path=/api/comments/**
+            - Path=/api/comment/**
