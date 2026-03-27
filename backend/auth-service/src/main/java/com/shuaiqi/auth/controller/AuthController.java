@@ -1,8 +1,6 @@
 package com.shuaiqi.auth.controller;
 
-import com.shuaiqi.auth.dto.AuthResponse;
-import com.shuaiqi.auth.dto.LoginRequest;
-import com.shuaiqi.auth.dto.RegisterRequest;
+import com.shuaiqi.auth.dto.*;
 import com.shuaiqi.auth.service.AuthService;
 import com.shuaiqi.common.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +55,24 @@ public class AuthController {
     public Result<AuthResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
         AuthResponse response = authService.refreshToken(request.getRefreshToken());
         return Result.success("刷新成功", response);
+    }
+
+    /**
+     * 忘记密码
+     */
+    @PostMapping("/forgot-password")
+    public Result<Void> forgotPassword(@Validated @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return Result.success("重置密码链接已发送到您的邮箱", null);
+    }
+
+    /**
+     * 重置密码
+     */
+    @PostMapping("/reset-password")
+    public Result<Void> resetPassword(@Validated @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return Result.success("密码重置成功", null);
     }
 
     /**

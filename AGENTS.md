@@ -15,6 +15,7 @@ shuaiqi-qi/
     ├── user-service/  # 用户服务 (端口 8082)
     ├── content-service/ # 内容服务 (端口 8083)
     ├── comment-service/ # 评论服务 (端口 8084)
+    ├── notification-service/ # 通知服务 (端口 8085)
     └── common/        # 公共模块
 ```
 
@@ -241,6 +242,9 @@ try {
 - `/profile/settings` - 设置页
 - `/notification` - 消息通知
 - `/user/:userId` - 用户详情页
+- `/login` - 登录页
+- `/register` - 注册页
+- `/forgot-password` - 忘记密码页
 
 ### 后台管理页面
 - `/admin` - 仪表盘

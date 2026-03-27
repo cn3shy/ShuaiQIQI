@@ -9,6 +9,7 @@ import AdminLayout from '@layouts/AdminLayout';
 const HomePage = React.lazy(() => import('@pages/HomePage'));
 const LoginPage = React.lazy(() => import('@pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('@pages/RegisterPage'));
+const ForgotPasswordPage = React.lazy(() => import('@pages/ForgotPasswordPage'));
 const ContentListPage = React.lazy(() => import('@pages/ContentListPage'));
 const ContentDetailPage = React.lazy(() => import('@pages/ContentDetailPage'));
 const CreateContentPage = React.lazy(() => import('@pages/CreateContentPage'));
@@ -75,6 +76,10 @@ export const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
   },
   {
     path: '/admin',

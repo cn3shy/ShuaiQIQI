@@ -1,9 +1,7 @@
 package com.shuaiqi.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.shuaiqi.auth.dto.AuthResponse;
-import com.shuaiqi.auth.dto.LoginRequest;
-import com.shuaiqi.auth.dto.RegisterRequest;
+import com.shuaiqi.auth.dto.*;
 import com.shuaiqi.auth.entity.User;
 import com.shuaiqi.auth.mapper.UserMapper;
 import com.shuaiqi.common.exception.BusinessException;
@@ -165,6 +163,8 @@ public class AuthService {
                         .avatar(user.getAvatar())
                         .bio(user.getBio())
                         .role(user.getRole() != null ? user.getRole() : "user")
+                        .createTime(user.getCreateTime())
+                        .updateTime(user.getUpdateTime())
                         .build())
                 .build();
     }
@@ -188,5 +188,67 @@ public class AuthService {
             throw BusinessException.unauthorized("Token无效或已过期");
         }
         return Long.parseLong(JwtUtils.getUserId(token));
+    }
+
+    private static final String RESET_TOKEN_PREFIX = "user:reset:";
+
+    /**
+     * 忘记密码 - 发送重置令牌
+     */
+    public void forgotPassword(ForgotPasswordRequest request) {
+        // 查询用户
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, request.getEmail()));
+
+        if (user == null) {
+            // 为了安全，不暴露用户是否存在
+            return;
+        }
+
+        // 生成重置令牌
+        String resetToken = UUID.randomUUID().toString();
+
+        // 存储令牌到Redis，有效期30分钟
+        redisTemplate.opsForValue().set(RESET_TOKEN_PREFIX + resetToken, user.getId().toString(), 30, TimeUnit.MINUTES);
+
+        // TODO: 发送邮件通知用户（这里只是生成令牌，实际发送邮件需要配置邮件服务）
+        log.info("用户 {} 的密码重置令牌已生成: {}", user.getUsername(), resetToken);
+    }
+
+    /**
+     * 重置密码
+     */
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        // 验证密码是否一致
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw BusinessException.badRequest("两次密码输入不一致");
+        }
+
+        // 从Redis获取用户ID
+        String userId = redisTemplate.opsForValue().get(RESET_TOKEN_PREFIX + request.getToken());
+        if (userId == null) {
+            throw BusinessException.badRequest("重置令牌无效或已过期");
+        }
+
+        // 查询用户
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.badRequest("用户不存在");
+        }
+
+        // 更新密码
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        // 删除重置令牌
+        redisTemplate.delete(RESET_TOKEN_PREFIX + request.getToken());
+
+        // 删除该用户的所有登录Token，强制重新登录
+        redisTemplate.delete(TOKEN_PREFIX + "*");
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+
+        log.info("用户 {} 密码已重置", user.getUsername());
     }
 }

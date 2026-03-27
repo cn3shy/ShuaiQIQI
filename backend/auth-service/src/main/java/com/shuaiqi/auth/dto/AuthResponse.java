@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 认证响应
  */
@@ -32,5 +34,7 @@ public class AuthResponse {
         private String avatar;
         private String bio;
         private String role;
+        private LocalDateTime createTime;
+        private LocalDateTime updateTime;
     }
 }
