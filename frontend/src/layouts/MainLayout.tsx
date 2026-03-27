@@ -11,6 +11,7 @@ import {
   CompassOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/auth';
+import NotificationBell from '@components/NotificationBell';
 import type { MenuProps } from 'antd';
 
 const { Header, Sider, Content } = Layout;
@@ -98,14 +99,17 @@ const MainLayout: React.FC = () => {
             <h2 style={{ margin: 0 }}>帅气气</h2>
           </Space>
           {user ? (
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar src={user.avatar} size={40}>
-                  {user.username[0]?.toUpperCase()}
-                </Avatar>
-                <span>{user.username}</span>
-              </Space>
-            </Dropdown>
+            <Space size={24}>
+              <NotificationBell />
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                <Space style={{ cursor: 'pointer' }}>
+                  <Avatar src={user.avatar} size={40}>
+                    {user.username[0]?.toUpperCase()}
+                  </Avatar>
+                  <span>{user.username}</span>
+                </Space>
+              </Dropdown>
+            </Space>
           ) : (
             <Space>
               <span onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>登录</span>

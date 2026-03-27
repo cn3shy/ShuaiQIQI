@@ -8,12 +8,16 @@ import ContentCard from '@components/ContentCard';
 import { getContentList, getHotContent, getRecommendContent, likeContent, unlikeContent, favoriteContent, unfavoriteContent } from '@services/content';
 import { Link } from 'react-router-dom';
 import type { Content } from '@types';
+import { useSearchHistory } from '@hooks/useSearchHistory';
+import SearchHistory from '@components/SearchHistory';
 
 const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [contents, setContents] = useState<Content[]>([]);
   const [activeTab, setActiveTab] = useState('latest');
   const [keyword, setKeyword] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const { history, addHistory, removeHistory, clearHistory } = useSearchHistory();
 
   const loadContents = async () => {
     setLoading(true);
@@ -112,8 +116,29 @@ const HomePage: React.FC = () => {
           allowClear
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={loadContents}
+          onFocus={() => setShowHistory(true)}
+          onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+          onPressEnter={() => {
+            if (keyword.trim()) {
+              addHistory(keyword);
+              loadContents();
+              setShowHistory(false);
+            }
+          }}
         />
+        {showHistory && (
+          <SearchHistory
+            history={history}
+            onSelect={(kw) => {
+              setKeyword(kw);
+              addHistory(kw);
+              loadContents();
+              setShowHistory(false);
+            }}
+            onRemove={removeHistory}
+            onClear={clearHistory}
+          />
+        )}
       </div>
 
       <Tabs

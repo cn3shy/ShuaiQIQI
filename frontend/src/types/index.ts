@@ -125,3 +125,36 @@ export interface PageParams {
   page?: number;
   pageSize?: number;
 }
+
+// 通知相关类型
+export interface Notification {
+  id: string;
+  type: 'comment' | 'like' | 'favorite' | 'follow';
+  title: string;
+  content: string;
+  userId: string;
+  targetId?: string;
+  targetType?: 'content' | 'comment';
+  isRead: boolean;
+  createTime: string;
+}
+
+export interface NotificationListResponse {
+  list: Notification[];
+  total: number;
+  unreadCount: number;
+}
+
+// 关注相关类型
+export interface FollowUser {
+  id: string;
+  username: string;
+  avatar?: string;
+  bio?: string;
+  isFollowing: boolean;
+}
+
+export interface FollowListResponse {
+  list: FollowUser[];
+  total: number;
+}

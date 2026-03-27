@@ -32,3 +32,13 @@ export const changePassword = (oldPassword: string, newPassword: string) => {
 export const getUserDetail = (userId: string) => {
   return request.get<User>(`/user/${userId}`);
 };
+
+// 获取用户列表（管理员）
+export const getUserList = (params: { page?: number; pageSize?: number; keyword?: string }) => {
+  return request.get<{ list: User[]; total: number }>('/user/list', { params });
+};
+
+// 删除用户（管理员）
+export const deleteUser = (userId: string) => {
+  return request.delete(`/user/${userId}`);
+};

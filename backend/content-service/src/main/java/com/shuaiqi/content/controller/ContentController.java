@@ -178,6 +178,17 @@ public class ContentController {
     }
 
     /**
+     * 更新评论数（服务间调用）
+     */
+    @PostMapping("/{contentId}/comment-count")
+    public Result<Void> updateCommentCount(
+            @PathVariable Long contentId,
+            @RequestParam Integer increment) {
+        contentService.updateCommentCount(contentId, increment);
+        return Result.success(null);
+    }
+
+    /**
      * 从请求中获取用户ID
      */
     private Long getUserIdFromRequest(HttpServletRequest request) {

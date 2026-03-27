@@ -44,7 +44,12 @@ public class ContentService {
         }
 
         if (params.getKeyword() != null && !params.getKeyword().isEmpty()) {
-            wrapper.like(Content::getTitle, params.getKeyword());
+            // 支持标题和内容的模糊搜索
+            wrapper.and(w -> w
+                    .like(Content::getTitle, params.getKeyword())
+                    .or()
+                    .like(Content::getSummary, params.getKeyword())
+            );
         }
 
         // 排序
@@ -257,6 +262,20 @@ public class ContentService {
         params.setPageSize(pageSize);
         params.setSortBy("hot");
         return getContentList(params, currentUserId);
+    }
+
+    /**
+     * 更新评论数（服务间调用）
+     */
+    @Transactional
+    public void updateCommentCount(Long contentId, Integer increment) {
+        Content content = contentMapper.selectById(contentId);
+        if (content == null) {
+            throw BusinessException.notFound("内容不存在");
+        }
+        content.setCommentCount(Math.max(0, content.getCommentCount() + increment));
+        content.setUpdateTime(LocalDateTime.now());
+        contentMapper.updateById(content);
     }
 
     /**

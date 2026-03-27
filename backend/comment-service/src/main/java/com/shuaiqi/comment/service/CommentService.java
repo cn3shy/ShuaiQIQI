@@ -7,6 +7,7 @@ import com.shuaiqi.comment.dto.CommentResponse;
 import com.shuaiqi.comment.dto.CreateCommentRequest;
 import com.shuaiqi.comment.entity.Comment;
 import com.shuaiqi.comment.mapper.CommentMapper;
+import com.shuaiqi.comment.feign.ContentServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,6 +29,7 @@ public class CommentService {
 
     private final CommentMapper commentMapper;
     private final StringRedisTemplate redisTemplate;
+    private final ContentServiceClient contentServiceClient;
 
     private static final String COMMENT_LIKES_KEY = "comment:likes:";
 
@@ -81,6 +83,13 @@ public class CommentService {
 
         commentMapper.insert(comment);
 
+        // 更新内容评论数
+        try {
+            contentServiceClient.updateCommentCount(request.getContentId(), 1);
+        } catch (Exception e) {
+            log.error("更新内容评论数失败", e);
+        }
+
         return convertToResponse(comment, userId);
     }
 
@@ -101,6 +110,13 @@ public class CommentService {
         comment.setStatus(0);
         comment.setUpdateTime(LocalDateTime.now());
         commentMapper.updateById(comment);
+
+        // 更新内容评论数
+        try {
+            contentServiceClient.updateCommentCount(comment.getContentId(), -1);
+        } catch (Exception e) {
+            log.error("更新内容评论数失败", e);
+        }
     }
 
     /**
