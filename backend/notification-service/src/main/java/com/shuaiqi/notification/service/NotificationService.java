@@ -2,11 +2,13 @@ package com.shuaiqi.notification.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.notification.dto.NotificationListResponse;
 import com.shuaiqi.notification.dto.NotificationResponse;
 import com.shuaiqi.notification.entity.Notification;
 import com.shuaiqi.notification.mapper.NotificationMapper;
+import com.shuaiqi.notification.websocket.WebSocketServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -129,6 +131,16 @@ public class NotificationService {
         notification.setCreateTime(LocalDateTime.now());
 
         notificationMapper.insert(notification);
+
+        // 通过 WebSocket 实时推送通知
+        try {
+            NotificationResponse response = convertToResponse(notification);
+            ObjectMapper objectMapper = new ObjectMapper();
+            String json = objectMapper.writeValueAsString(response);
+            WebSocketServer.sendMessage(userId.toString(), json);
+        } catch (Exception e) {
+            log.error("WebSocket 推送通知失败: {}", e.getMessage());
+        }
     }
 
     /**

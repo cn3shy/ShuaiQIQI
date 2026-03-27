@@ -6,6 +6,8 @@ import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Category;
 import com.shuaiqi.content.service.CategoryService;
 import com.shuaiqi.content.service.ContentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -16,6 +18,7 @@ import java.util.List;
 /**
  * 内容控制器
  */
+@Tag(name = "内容管理", description = "内容相关接口")
 @RestController
 @RequestMapping("/api/content")
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class ContentController {
     /**
      * 获取内容列表
      */
+    @Operation(summary = "获取内容列表", description = "分页获取内容列表，支持筛选和排序")
     @GetMapping("/list")
     public Result<Page<ContentResponse>> getContentList(
             @ModelAttribute ContentListParams params,
@@ -39,6 +43,7 @@ public class ContentController {
     /**
      * 获取内容详情
      */
+    @Operation(summary = "获取内容详情", description = "根据ID获取内容详情")
     @GetMapping("/{id}")
     public Result<ContentResponse> getContentDetail(
             @PathVariable Long id,
@@ -51,6 +56,7 @@ public class ContentController {
     /**
      * 创建内容
      */
+    @Operation(summary = "创建内容", description = "创建新的内容")
     @PostMapping("/create")
     public Result<ContentResponse> createContent(
             @Validated @RequestBody CreateContentRequest request,
@@ -63,6 +69,7 @@ public class ContentController {
     /**
      * 更新内容
      */
+    @Operation(summary = "更新内容", description = "根据ID更新内容")
     @PutMapping("/{id}")
     public Result<ContentResponse> updateContent(
             @PathVariable Long id,
@@ -76,6 +83,7 @@ public class ContentController {
     /**
      * 删除内容
      */
+    @Operation(summary = "删除内容", description = "根据ID删除内容")
     @DeleteMapping("/{id}")
     public Result<Void> deleteContent(
             @PathVariable Long id,
@@ -88,6 +96,7 @@ public class ContentController {
     /**
      * 点赞内容
      */
+    @Operation(summary = "点赞内容", description = "为内容点赞")
     @PostMapping("/{id}/like")
     public Result<Void> likeContent(
             @PathVariable Long id,
@@ -100,6 +109,7 @@ public class ContentController {
     /**
      * 取消点赞
      */
+    @Operation(summary = "取消点赞", description = "取消对内容的点赞")
     @DeleteMapping("/{id}/like")
     public Result<Void> unlikeContent(
             @PathVariable Long id,
@@ -112,6 +122,7 @@ public class ContentController {
     /**
      * 收藏内容
      */
+    @Operation(summary = "收藏内容", description = "收藏内容")
     @PostMapping("/{id}/favorite")
     public Result<Void> favoriteContent(
             @PathVariable Long id,
@@ -124,6 +135,7 @@ public class ContentController {
     /**
      * 取消收藏
      */
+    @Operation(summary = "取消收藏", description = "取消收藏内容")
     @DeleteMapping("/{id}/favorite")
     public Result<Void> unfavoriteContent(
             @PathVariable Long id,
@@ -136,6 +148,7 @@ public class ContentController {
     /**
      * 获取分类列表
      */
+    @Operation(summary = "获取分类列表", description = "获取所有分类")
     @GetMapping("/categories")
     public Result<List<Category>> getCategoryList() {
         List<Category> categories = categoryService.getCategoryList();
@@ -154,6 +167,7 @@ public class ContentController {
     /**
      * 获取推荐内容
      */
+    @Operation(summary = "获取推荐内容", description = "获取推荐内容列表")
     @GetMapping("/recommend")
     public Result<Page<ContentResponse>> getRecommendContent(
             @RequestParam(defaultValue = "1") Integer page,
@@ -167,6 +181,7 @@ public class ContentController {
     /**
      * 获取热门内容
      */
+    @Operation(summary = "获取热门内容", description = "获取热门内容列表")
     @GetMapping("/hot")
     public Result<Page<ContentResponse>> getHotContent(
             @RequestParam(defaultValue = "1") Integer page,

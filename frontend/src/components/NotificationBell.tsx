@@ -1,14 +1,27 @@
 // 通知铃铛组件
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Badge, Dropdown, List, Empty, Button, Space } from 'antd';
 import { BellOutlined, CommentOutlined, LikeOutlined, StarOutlined, UserAddOutlined } from '@ant-design/icons';
 import { getNotificationList, markAsRead } from '@services/notification';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '@stores/auth';
+import { useWebSocket } from '@hooks/useWebSocket';
 import type { Notification } from '@types';
 
 const NotificationBell: React.FC = () => {
+  const { user } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const handleNewNotification = useCallback((notification: Notification) => {
+    setNotifications((prev) => [notification, ...prev.slice(0, 4)]);
+    setUnreadCount((prev) => prev + 1);
+  }, []);
+
+  const { isConnected } = useWebSocket({
+    userId: user?.id,
+    onNotification: handleNewNotification,
+  });
 
   const loadNotifications = async () => {
     try {

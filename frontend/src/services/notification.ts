@@ -1,6 +1,6 @@
 // 通知服务 API
 import request from './api';
-import type { Notification, NotificationListResponse } from '@types';
+import type { NotificationListResponse } from '@types';
 
 // 获取通知列表
 export const getNotificationList = (params: { page?: number; pageSize?: number }) => {

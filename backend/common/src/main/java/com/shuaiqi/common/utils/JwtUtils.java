@@ -80,4 +80,12 @@ public class JwtUtils {
         Claims claims = parseToken(token);
         return claims.getSubject();
     }
+
+    /**
+     * 获取用户角色
+     */
+    public static String getRole(String token) {
+        Claims claims = parseToken(token);
+        return (String) claims.get("role");
+    }
 }

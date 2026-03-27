@@ -31,5 +31,6 @@ public class AuthResponse {
         private String phone;
         private String avatar;
         private String bio;
+        private String role;
     }
 }

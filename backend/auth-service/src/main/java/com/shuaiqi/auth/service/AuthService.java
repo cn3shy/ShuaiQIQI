@@ -143,6 +143,7 @@ public class AuthService {
         // 生成访问Token
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", user.getUsername());
+        claims.put("role", user.getRole() != null ? user.getRole() : "user");
         String accessToken = JwtUtils.generateAccessToken(user.getId().toString(), claims);
 
         // 生成刷新Token
@@ -163,6 +164,7 @@ public class AuthService {
                         .phone(user.getPhone())
                         .avatar(user.getAvatar())
                         .bio(user.getBio())
+                        .role(user.getRole() != null ? user.getRole() : "user")
                         .build())
                 .build();
     }

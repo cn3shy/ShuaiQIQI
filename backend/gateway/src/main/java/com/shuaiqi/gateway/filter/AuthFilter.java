@@ -32,6 +32,12 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/api/user/"
     );
 
+    // 需要管理员权限的路径
+    private static final List<String> ADMIN_PATHS = List.of(
+            "/api/user/list",
+            "/api/user/delete"
+    );
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
@@ -49,10 +55,20 @@ public class AuthFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
-        // 获取用户ID并添加到请求头
+        // 获取用户ID和角色
         String userId = JwtUtils.getUserId(token);
+        String role = JwtUtils.getRole(token);
+
+        // 检查管理员权限
+        if (isAdminPath(path) && !"admin".equals(role)) {
+            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+            return exchange.getResponse().setComplete();
+        }
+
+        // 将用户信息添加到请求头
         ServerHttpRequest modifiedRequest = request.mutate()
                 .header("X-User-Id", userId)
+                .header("X-User-Role", role != null ? role : "user")
                 .build();
 
         return chain.filter(exchange.mutate().request(modifiedRequest).build());
@@ -72,6 +88,13 @@ public class AuthFilter implements GlobalFilter, Ordered {
             return true;
         }
         return WHITE_LIST.stream().anyMatch(path::startsWith);
+    }
+
+    /**
+     * 检查路径是否需要管理员权限
+     */
+    private boolean isAdminPath(String path) {
+        return ADMIN_PATHS.stream().anyMatch(path::startsWith);
     }
 
     /**
