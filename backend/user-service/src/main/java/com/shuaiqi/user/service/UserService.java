@@ -1,11 +1,12 @@
 package com.shuaiqi.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
-import com.shuaiqi.user.dto.ChangePasswordRequest;
-import com.shuaiqi.user.dto.UpdateUserRequest;
-import com.shuaiqi.user.dto.UserInfoResponse;
+import com.shuaiqi.user.dto.*;
 import com.shuaiqi.user.entity.User;
+import com.shuaiqi.user.entity.UserFollow;
+import com.shuaiqi.user.mapper.UserFollowMapper;
 import com.shuaiqi.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 用户服务
@@ -28,6 +31,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserMapper userMapper;
+    private final UserFollowMapper userFollowMapper;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final String UPLOAD_DIR = "uploads/avatars/";
@@ -154,6 +158,155 @@ public class UserService {
     }
 
     /**
+     * 获取用户列表（管理员）
+     */
+    public Page<UserInfoResponse> getUserList(Integer page, Integer pageSize, String keyword) {
+        Page<User> userPage = new Page<>(page, pageSize);
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.like(User::getUsername, keyword)
+                    .or()
+                    .like(User::getEmail, keyword);
+        }
+
+        wrapper.orderByDesc(User::getCreateTime);
+        Page<User> result = userMapper.selectPage(userPage, wrapper);
+
+        Page<UserInfoResponse> responsePage = new Page<>();
+        responsePage.setCurrent(result.getCurrent());
+        responsePage.setSize(result.getSize());
+        responsePage.setTotal(result.getTotal());
+
+        List<UserInfoResponse> userList = result.getRecords().stream()
+                .map(this::convertToResponse)
+                .toList();
+        responsePage.setRecords(userList);
+
+        return responsePage;
+    }
+
+    /**
+     * 删除用户（管理员）
+     */
+    @Transactional
+    public void deleteUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+        // 软删除
+        user.setStatus(0);
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    /**
+     * 关注用户
+     */
+    @Transactional
+    public void followUser(Long followerId, Long followingId) {
+        if (followerId.equals(followingId)) {
+            throw BusinessException.badRequest("不能关注自己");
+        }
+
+        // 检查用户是否存在
+        User followingUser = userMapper.selectById(followingId);
+        if (followingUser == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+
+        // 检查是否已关注
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowerId, followerId)
+                .eq(UserFollow::getFollowingId, followingId);
+        if (userFollowMapper.selectCount(wrapper) > 0) {
+            throw BusinessException.badRequest("已经关注过了");
+        }
+
+        // 创建关注关系
+        UserFollow userFollow = new UserFollow();
+        userFollow.setFollowerId(followerId);
+        userFollow.setFollowingId(followingId);
+        userFollow.setCreateTime(LocalDateTime.now());
+        userFollowMapper.insert(userFollow);
+    }
+
+    /**
+     * 取消关注
+     */
+    @Transactional
+    public void unfollowUser(Long followerId, Long followingId) {
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowerId, followerId)
+                .eq(UserFollow::getFollowingId, followingId);
+
+        if (userFollowMapper.selectCount(wrapper) == 0) {
+            throw BusinessException.badRequest("还没有关注");
+        }
+
+        userFollowMapper.delete(wrapper);
+    }
+
+    /**
+     * 获取关注列表
+     */
+    public FollowListResponse getFollowingList(Long userId, Integer page, Integer pageSize) {
+        Page<UserFollow> followPage = new Page<>(page, pageSize);
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowerId, userId)
+                .orderByDesc(UserFollow::getCreateTime);
+
+        Page<UserFollow> result = userFollowMapper.selectPage(followPage, wrapper);
+
+        List<FollowUserResponse> userList = result.getRecords().stream()
+                .map(follow -> {
+                    User user = userMapper.selectById(follow.getFollowingId());
+                    return convertToFollowUserResponse(user, userId);
+                })
+                .toList();
+
+        return FollowListResponse.builder()
+                .list(userList)
+                .total(result.getTotal())
+                .build();
+    }
+
+    /**
+     * 获取粉丝列表
+     */
+    public FollowListResponse getFollowerList(Long userId, Integer page, Integer pageSize) {
+        Page<UserFollow> followPage = new Page<>(page, pageSize);
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowingId, userId)
+                .orderByDesc(UserFollow::getCreateTime);
+
+        Page<UserFollow> result = userFollowMapper.selectPage(followPage, wrapper);
+
+        List<FollowUserResponse> userList = result.getRecords().stream()
+                .map(follow -> {
+                    User user = userMapper.selectById(follow.getFollowerId());
+                    return convertToFollowUserResponse(user, userId);
+                })
+                .toList();
+
+        return FollowListResponse.builder()
+                .list(userList)
+                .total(result.getTotal())
+                .build();
+    }
+
+    /**
+     * 检查是否关注
+     */
+    public boolean checkIsFollowing(Long followerId, Long followingId) {
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowerId, followerId)
+                .eq(UserFollow::getFollowingId, followingId);
+        return userFollowMapper.selectCount(wrapper) > 0;
+    }
+
+    /**
      * 转换为响应对象
      */
     private UserInfoResponse convertToResponse(User user) {
@@ -166,6 +319,20 @@ public class UserService {
                 .bio(user.getBio())
                 .createTime(user.getCreateTime())
                 .updateTime(user.getUpdateTime())
+                .build();
+    }
+
+    /**
+     * 转换为关注用户响应对象
+     */
+    private FollowUserResponse convertToFollowUserResponse(User user, Long currentUserId) {
+        boolean isFollowing = checkIsFollowing(currentUserId, user.getId());
+        return FollowUserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .avatar(user.getAvatar())
+                .bio(user.getBio())
+                .isFollowing(isFollowing)
                 .build();
     }
 }

@@ -35,3 +35,7 @@ spring:
           uri: lb://comment-service
           predicates:
             - Path=/api/comment/**
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notification/**

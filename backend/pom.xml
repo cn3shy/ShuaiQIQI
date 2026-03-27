@@ -19,6 +19,7 @@
         <module>user-service</module>
         <module>content-service</module>
         <module>comment-service</module>
+        <module>notification-service</module>
         <module>common</module>
     </modules>
 

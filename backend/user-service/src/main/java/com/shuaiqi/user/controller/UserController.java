@@ -1,7 +1,9 @@
 package com.shuaiqi.user.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.result.Result;
 import com.shuaiqi.user.dto.ChangePasswordRequest;
+import com.shuaiqi.user.dto.FollowListResponse;
 import com.shuaiqi.user.dto.UpdateUserRequest;
 import com.shuaiqi.user.dto.UserInfoResponse;
 import com.shuaiqi.user.service.UserService;
@@ -9,7 +11,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 用户控制器
@@ -60,7 +61,7 @@ public class UserController {
      */
     @PostMapping("/avatar")
     public Result<String> uploadAvatar(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             HttpServletRequest request) {
         Long userId = getUserIdFromRequest(request);
         String avatarUrl = userService.uploadAvatar(userId, file);
@@ -77,10 +78,90 @@ public class UserController {
     }
 
     /**
-     * 从请求中获取用户ID（实际项目中应该通过拦截器或过滤器获取）
+     * 获取用户列表（管理员）
+     */
+    @GetMapping("/list")
+    public Result<Page<UserInfoResponse>> getUserList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String keyword) {
+        Page<UserInfoResponse> userList = userService.getUserList(page, pageSize, keyword);
+        return Result.success(userList);
+    }
+
+    /**
+     * 删除用户（管理员）
+     */
+    @DeleteMapping("/{userId}")
+    public Result<Void> deleteUser(@PathVariable Long userId) {
+        userService.deleteUser(userId);
+        return Result.success("删除成功", null);
+    }
+
+    /**
+     * 关注用户
+     */
+    @PostMapping("/{userId}/follow")
+    public Result<Void> followUser(
+            @PathVariable Long userId,
+            HttpServletRequest request) {
+        Long followerId = getUserIdFromRequest(request);
+        userService.followUser(followerId, userId);
+        return Result.success("关注成功", null);
+    }
+
+    /**
+     * 取消关注
+     */
+    @DeleteMapping("/{userId}/follow")
+    public Result<Void> unfollowUser(
+            @PathVariable Long userId,
+            HttpServletRequest request) {
+        Long followerId = getUserIdFromRequest(request);
+        userService.unfollowUser(followerId, userId);
+        return Result.success("取消关注成功", null);
+    }
+
+    /**
+     * 获取关注列表
+     */
+    @GetMapping("/{userId}/following")
+    public Result<FollowListResponse> getFollowingList(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        FollowListResponse followingList = userService.getFollowingList(userId, page, pageSize);
+        return Result.success(followingList);
+    }
+
+    /**
+     * 获取粉丝列表
+     */
+    @GetMapping("/{userId}/followers")
+    public Result<FollowListResponse> getFollowerList(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        FollowListResponse followerList = userService.getFollowerList(userId, page, pageSize);
+        return Result.success(followerList);
+    }
+
+    /**
+     * 检查是否关注
+     */
+    @GetMapping("/{userId}/is-following")
+    public Result<Boolean> checkIsFollowing(
+            @PathVariable Long userId,
+            HttpServletRequest request) {
+        Long followerId = getUserIdFromRequest(request);
+        boolean isFollowing = userService.checkIsFollowing(followerId, userId);
+        return Result.success(isFollowing);
+    }
+
+    /**
+     * 从请求中获取用户ID
      */
     private Long getUserIdFromRequest(HttpServletRequest request) {
-        // 这里简化处理，实际应该从JWT token中解析
         String userId = request.getHeader("X-User-Id");
         if (userId == null) {
             throw new RuntimeException("未授权访问");
