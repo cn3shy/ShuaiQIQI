@@ -224,3 +224,25 @@ try {
 2. **中文注释**: 项目使用中文注释，保持一致性
 3. **响应式设计**: 使用 Ant Design 的 Grid 系统 (xs/sm/md/lg/xl/xxl)
 4. **类型安全**: 避免使用 `any`，尽量提供具体类型
+
+## Git 工作流
+
+- 直接在 `main` 分支开发和提交
+- 每次完成功能后 `git push origin main`
+
+## 项目页面结构
+
+### 前台页面
+- `/` - 首页（内容列表、搜索、热门/推荐）
+- `/content` - 发现页（内容浏览）
+- `/content/:id` - 内容详情页
+- `/content/create` - 创建内容
+- `/profile` - 个人中心
+- `/profile/settings` - 设置页
+- `/notification` - 消息通知
+- `/user/:userId` - 用户详情页
+
+### 后台管理页面
+- `/admin` - 仪表盘
+- `/admin/content` - 内容管理
+- `/admin/user` - 用户管理
