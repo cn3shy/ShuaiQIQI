@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Empty, Spin, Tabs, Input, Card } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import ContentCard from '@components/ContentCard';
-import { getContentList, getHotContent, getRecommendContent } from '@services/content';
+import { getContentList, getHotContent, getRecommendContent, likeContent, unlikeContent, favoriteContent, unfavoriteContent } from '@services/content';
 import { Link } from 'react-router-dom';
 import type { Content } from '@types';
 
@@ -13,26 +13,82 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [contents, setContents] = useState<Content[]>([]);
   const [activeTab, setActiveTab] = useState('latest');
+  const [keyword, setKeyword] = useState('');
 
   const loadContents = async () => {
     setLoading(true);
     try {
       let data;
+      const params: any = { page: 1, pageSize: 20 };
+      if (keyword) params.keyword = keyword;
+
       switch (activeTab) {
         case 'hot':
-          data = await getHotContent({ page: 1, pageSize: 20 });
+          data = await getHotContent(params);
           break;
         case 'recommend':
-          data = await getRecommendContent({ page: 1, pageSize: 20 });
+          data = await getRecommendContent(params);
           break;
         default:
-          data = await getContentList({ page: 1, pageSize: 20, sortBy: 'latest' });
+          data = await getContentList({ ...params, sortBy: 'latest' });
       }
       setContents(data.data?.list || []);
     } catch (error) {
       console.error('加载内容失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLike = async (id: string) => {
+    try {
+      const content = contents.find(c => c.id === id);
+      if (!content) return;
+
+      if (content.isLiked) {
+        await unlikeContent(id);
+      } else {
+        await likeContent(id);
+      }
+
+      setContents(prev => prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            isLiked: !c.isLiked,
+            likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('点赞操作失败:', error);
+    }
+  };
+
+  const handleFavorite = async (id: string) => {
+    try {
+      const content = contents.find(c => c.id === id);
+      if (!content) return;
+
+      if (content.isFavorited) {
+        await unfavoriteContent(id);
+      } else {
+        await favoriteContent(id);
+      }
+
+      setContents(prev => prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            isFavorited: !c.isFavorited,
+            favoriteCount: c.isFavorited ? c.favoriteCount - 1 : c.favoriteCount + 1,
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('收藏操作失败:', error);
     }
   };
 
@@ -54,7 +110,9 @@ const HomePage: React.FC = () => {
           prefix={<SearchOutlined />}
           size="large"
           allowClear
-          onPressEnter={() => {}}
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onPressEnter={loadContents}
         />
       </div>
 
@@ -75,8 +133,8 @@ const HomePage: React.FC = () => {
                 <ContentCard
                   key={content.id}
                   content={content}
-                  onLike={() => console.log('点赞:', content.id)}
-                  onFavorite={() => console.log('收藏:', content.id)}
+                  onLike={handleLike}
+                  onFavorite={handleFavorite}
                 />
               ))}
             </Col>

@@ -92,9 +92,11 @@ const ContentCard: React.FC<ContentCardProps> = ({ content, onLike, onFavorite }
           </Space>
         </Col>
         <Col>
-          <Button type="link" onClick={() => console.log('详情:', content.id)}>
-            查看更多
-          </Button>
+          <Link to={`/content/${content.id}`}>
+            <Button type="link">
+              查看更多
+            </Button>
+          </Link>
         </Col>
       </Row>
     </Card>

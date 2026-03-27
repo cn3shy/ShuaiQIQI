@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Spin, Empty, Select, Input, Card, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import ContentCard from '@components/ContentCard';
-import { getCategoryList, getContentList } from '@services/content';
+import { getCategoryList, getContentList, likeContent, unlikeContent, favoriteContent, unfavoriteContent } from '@services/content';
 import type { Content, Category } from '@types';
 
 /**
@@ -41,10 +41,65 @@ const ContentListPage: React.FC = () => {
     }
   };
 
+  const handleLike = async (id: string) => {
+    try {
+      const content = contents.find(c => c.id === id);
+      if (!content) return;
+
+      if (content.isLiked) {
+        await unlikeContent(id);
+      } else {
+        await likeContent(id);
+      }
+
+      setContents(prev => prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            isLiked: !c.isLiked,
+            likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('点赞操作失败:', error);
+    }
+  };
+
+  const handleFavorite = async (id: string) => {
+    try {
+      const content = contents.find(c => c.id === id);
+      if (!content) return;
+
+      if (content.isFavorited) {
+        await unfavoriteContent(id);
+      } else {
+        await favoriteContent(id);
+      }
+
+      setContents(prev => prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            isFavorited: !c.isFavorited,
+            favoriteCount: c.isFavorited ? c.favoriteCount - 1 : c.favoriteCount + 1,
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+    }
+  };
+
   useEffect(() => {
     loadCategories();
-    loadContents();
   }, []);
+
+  useEffect(() => {
+    loadContents();
+  }, [selectedCategory, sortBy]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -52,7 +107,10 @@ const ContentListPage: React.FC = () => {
         <Input.Search
           placeholder="搜索内容..."
           prefix={<SearchOutlined />}
-          onSearch={setKeyword}
+          onSearch={(value) => {
+            setKeyword(value);
+            loadContents();
+          }}
           allowClear
           size="large"
           style={{ maxWidth: 400 }}
@@ -97,8 +155,8 @@ const ContentListPage: React.FC = () => {
               <Col xs={24} sm={24} md={12} lg={12} xl={8} key={content.id}>
                 <ContentCard
                   content={content}
-                  onLike={() => console.log('点赞:', content.id)}
-                  onFavorite={() => console.log('收藏:', content.id)}
+                  onLike={handleLike}
+                  onFavorite={handleFavorite}
                 />
               </Col>
             ))}
