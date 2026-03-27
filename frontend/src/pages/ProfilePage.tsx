@@ -1,26 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Avatar, Tabs, Row, Col, Spin, Empty, Button, Form, Input, message } from 'antd';
+import { Card, Avatar, Tabs, Row, Col, Spin, Empty, Button } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import { updateUserInfo, changePassword } from '@services/user';
+import { useNavigate } from 'react-router-dom';
+import { getCurrentUser } from '@services/user';
+import { getContentList } from '@services/content';
 import { useAuthStore } from '@stores/auth';
-import type { User } from '@types';
+import ContentCard from '@components/ContentCard';
+import type { Content } from '@types';
 
 /**
  * 个人中心页
  */
 const ProfilePage: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [tabKey, setTabKey] = useState('info');
-  const [infoForm] = Form.useForm();
-  const [passwordForm] = Form.useForm();
+  const [myContents, setMyContents] = useState<Content[]>([]);
+  const [myContentsLoading, setMyContentsLoading] = useState(false);
+
+  useEffect(() => {
+    loadUserInfo();
+  }, []);
+
+  useEffect(() => {
+    if (tabKey === 'contents' && user) {
+      loadMyContents();
+    }
+  }, [tabKey, user]);
 
   const loadUserInfo = async () => {
-    if (user) return; // 已经有用户信息
+    if (user) return;
     setLoading(true);
     try {
       const response = await getCurrentUser();
-      // TODO: 更新用户信息到store
+      setUser(response.data);
     } catch (error) {
       console.error('加载用户信息失败:', error);
     } finally {
@@ -28,47 +42,41 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadUserInfo();
-  }, []);
-
-  const handleInfoSubmit = async (values: Partial<User>) => {
+  const loadMyContents = async () => {
     if (!user) return;
-    setLoading(true);
+    setMyContentsLoading(true);
     try {
-      await updateUserInfo(values);
-      message.success('信息更新成功');
-    } catch (error: any) {
-      message.error(error.message || '更新失败');
+      const response = await getContentList({ page: 1, pageSize: 20 });
+      // 筛选当前用户的内容
+      const filtered = (response.data?.list || []).filter(
+        (c: Content) => c.author?.id === user.id
+      );
+      setMyContents(filtered);
+    } catch (error) {
+      console.error('加载我的内容失败:', error);
     } finally {
-      setLoading(false);
+      setMyContentsLoading(false);
     }
   };
 
-  const handlePasswordSubmit = async (values: any) => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      await changePassword(values.oldPassword, values.newPassword);
-      message.success('密码修改成功，请重新登录');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    } catch (error: any) {
-      message.error(error.message || '修改失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!user && loading) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <Spin spinning={loading}>
-          <div style={{ padding: '40px 0' }}>
-            <UserOutlined style={{ fontSize: 48, color: '#999' }} />
-            <p style={{ marginTop: 16 }}>请先登录</p>
-          </div>
-        </Spin>
+        <div style={{ padding: '40px 0' }}>
+          <UserOutlined style={{ fontSize: 48, color: '#999' }} />
+          <p style={{ marginTop: 16 }}>请先登录</p>
+          <Button type="primary" onClick={() => navigate('/login')}>
+            去登录
+          </Button>
+        </div>
       </div>
     );
   }
@@ -86,7 +94,7 @@ const ProfilePage: React.FC = () => {
               icon={<UserOutlined />}
               style={{ fontSize: 48, backgroundColor: '#1890ff' }}
             >
-              {user.username[0]?.toUpperCase()}
+              {user.username?.[0]?.toUpperCase()}
             </Avatar>
             <div style={{ flex: 1 }}>
               <h2 style={{ margin: '0 0 8px 0' }}>{user.username}</h2>
@@ -95,7 +103,7 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          <Row gutter={16} style={{ marginTop: 32 }}>
+          <Row gutter={[16, 16]} style={{ marginTop: 32 }}>
             <Col span={8}>
               <div style={{ fontWeight: 500 }}>用户名:</div>
             </Col>
@@ -120,82 +128,39 @@ const ProfilePage: React.FC = () => {
       ),
     },
     {
-      key: 'favorite',
-      label: '我的收藏',
+      key: 'contents',
+      label: '我的内容',
       children: (
-        <div style={{ padding: 24 }}>
-          <Empty description="暂无收藏内容" />
-        </div>
+        <Spin spinning={myContentsLoading}>
+          {myContents.length === 0 ? (
+            <Empty description="暂无发布内容">
+              <Button type="primary" onClick={() => navigate('/content/create')}>
+                去发布
+              </Button>
+            </Empty>
+          ) : (
+            <Row gutter={[16, 16]}>
+              {myContents.map((content) => (
+                <Col xs={24} sm={24} md={12} key={content.id}>
+                  <ContentCard
+                    content={content}
+                    onLike={() => {}}
+                    onFavorite={() => {}}
+                  />
+                </Col>
+              ))}
+            </Row>
+          )}
+        </Spin>
       ),
     },
     {
-      key: 'settings',
-      label: '设置',
+      key: 'favorites',
+      label: '我的收藏',
       children: (
-        <Card title="设置">
-          <Form form={infoForm} layout="vertical" onFinish={handleInfoSubmit} initialValues={user}>
-            <Form.Item label="用户名" name="username">
-              <Input readOnly />
-            </Form.Item>
-
-            <Form.Item label="邮箱" name="email">
-              <Input readOnly />
-            </Form.Item>
-
-            <Form.Item label="手机号" name="phone">
-              <Input placeholder="请输入手机号" />
-            </Form.Item>
-
-            <Form.Item label="个人简介" name="bio">
-              <Input.TextArea placeholder="介绍一下自己" rows={4} maxLength={200} />
-            </Form.Item>
-
-            <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading}>保存信息</Button>
-            </Form.Item>
-          </Form>
-
-          <div style={{ marginTop: 32 }}>
-            <h3>修改密码</h3>
-            <Form form={passwordForm} layout="vertical" onFinish={handlePasswordSubmit}>
-              <Form.Item
-                name="oldPassword"
-                rules={[{ required: true, message: '请输入旧密码' }]}
-              >
-                <Input.Password placeholder="旧密码" />
-              </Form.Item>
-
-              <Form.Item
-                name="newPassword"
-                rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '密码长度至少6位' }]}
-              >
-                <Input.Password placeholder="新密码" />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true, message: '请确认新密码' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('两次密码输入不一致'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password placeholder="确认新密码" />
-              </Form.Item>
-
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={loading}>修改密码</Button>
-              </Form.Item>
-            </Form>
-          </div>
-        </Card>
+        <div style={{ padding: 24 }}>
+          <Empty description="收藏功能待后端支持" />
+        </div>
       ),
     },
   ];

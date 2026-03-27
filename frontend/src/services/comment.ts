@@ -8,35 +8,25 @@ import type {
 
 // 获取评论列表
 export const getCommentList = (contentId: string, params: PageParams = {}) => {
-  return request.get<{ list: Comment[]; total: number }>(`/comments/${contentId}`, { params });
+  return request.get<{ list: Comment[]; total: number }>(`/comment/content/${contentId}`, { params });
 };
 
 // 发布评论
 export const createComment = (data: CreateCommentRequest) => {
-  return request.post<Comment>('/comments/create', data);
-};
-
-// 回复评论
-export const replyComment = (commentId: string, content: string) => {
-  return request.post<Comment>(`/comments/${commentId}/reply`, { content });
+  return request.post<Comment>('/comment/create', data);
 };
 
 // 删除评论
 export const deleteComment = (id: string) => {
-  return request.delete(`/comments/${id}`);
+  return request.delete(`/comment/${id}`);
 };
 
 // 点赞评论
 export const likeComment = (id: string) => {
-  return request.post(`/comments/${id}/like`);
+  return request.post(`/comment/${id}/like`);
 };
 
 // 取消点赞评论
 export const unlikeComment = (id: string) => {
-  return request.delete(`/comments/${id}/like`);
-};
-
-// 举报评论
-export const reportComment = (id: string, reason: string) => {
-  return request.post(`/comments/${id}/report`, { reason });
+  return request.delete(`/comment/${id}/like`);
 };
