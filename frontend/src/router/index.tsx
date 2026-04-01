@@ -5,6 +5,7 @@ import MainLayout from '@layouts/MainLayout';
 import MobileLayout from '@layouts/MobileLayout';
 import AdminLayout from '@layouts/AdminLayout';
 import { useAuthStore } from '@stores/auth';
+import ErrorBoundary from '@components/ErrorBoundary';
 
 // 页面组件（稍后创建）
 const HomePage = React.lazy(() => import('@pages/HomePage'));
@@ -61,24 +62,39 @@ export const router = createBrowserRouter([
         <ResponsiveLayout />
       </Suspense>
     ),
+    errorElement: <Navigate to="/404" replace />,
     children: [
       {
         index: true,
-        element: <HomePage />,
+        element: (
+          <ErrorBoundary>
+            <HomePage />
+          </ErrorBoundary>
+        ),
       },
       {
         path: 'content',
-        element: <ContentListPage />,
+        element: (
+          <ErrorBoundary>
+            <ContentListPage />
+          </ErrorBoundary>
+        ),
       },
       {
         path: 'content/:id',
-        element: <ContentDetailPage />,
+        element: (
+          <ErrorBoundary>
+            <ContentDetailPage />
+          </ErrorBoundary>
+        ),
       },
       {
         path: 'content/create',
         element: (
           <ProtectedRoute>
-            <CreateContentPage />
+            <ErrorBoundary>
+              <CreateContentPage />
+            </ErrorBoundary>
           </ProtectedRoute>
         ),
       },
@@ -86,7 +102,9 @@ export const router = createBrowserRouter([
         path: 'profile',
         element: (
           <ProtectedRoute>
-            <ProfilePage />
+            <ErrorBoundary>
+              <ProfilePage />
+            </ErrorBoundary>
           </ProtectedRoute>
         ),
       },
@@ -94,7 +112,9 @@ export const router = createBrowserRouter([
         path: 'profile/settings',
         element: (
           <ProtectedRoute>
-            <SettingsPage />
+            <ErrorBoundary>
+              <SettingsPage />
+            </ErrorBoundary>
           </ProtectedRoute>
         ),
       },
@@ -102,13 +122,19 @@ export const router = createBrowserRouter([
         path: 'notification',
         element: (
           <ProtectedRoute>
-            <NotificationPage />
+            <ErrorBoundary>
+              <NotificationPage />
+            </ErrorBoundary>
           </ProtectedRoute>
         ),
       },
       {
         path: 'user/:userId',
-        element: <UserDetailPage />,
+        element: (
+          <ErrorBoundary>
+            <UserDetailPage />
+          </ErrorBoundary>
+        ),
       },
     ],
   },

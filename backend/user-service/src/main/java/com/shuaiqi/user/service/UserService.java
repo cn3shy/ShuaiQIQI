@@ -11,7 +11,7 @@ import com.shuaiqi.user.mapper.UserFollowMapper;
 import com.shuaiqi.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,8 +21,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -35,7 +34,7 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final UserFollowMapper userFollowMapper;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator + "avatars" + File.separator;
 
@@ -217,10 +216,13 @@ public class UserService {
             throw BusinessException.badRequest("不能关注自己");
         }
 
-        // 检查用户是否存在
+        // 检查用户是否存在且状态正常
         User followingUser = userMapper.selectById(followingId);
         if (followingUser == null) {
             throw BusinessException.notFound("用户不存在");
+        }
+        if (followingUser.getStatus() == null || followingUser.getStatus() != 1) {
+            throw BusinessException.badRequest("该用户已注销或被禁用");
         }
 
         // 检查是否已关注
@@ -266,10 +268,25 @@ public class UserService {
 
         Page<UserFollow> result = userFollowMapper.selectPage(followPage, wrapper);
 
+        // 批量查询用户信息，解决 N+1 问题
+        List<Long> userIds = result.getRecords().stream()
+                .map(UserFollow::getFollowingId)
+                .toList();
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<User> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+        }
+
+        // 批量查询关注状态
+        Set<Long> followingIds = getFollowingIds(userId, userIds);
+
+        final Map<Long, User> finalUserMap = userMap;
         List<FollowUserResponse> userList = result.getRecords().stream()
                 .map(follow -> {
-                    User user = userMapper.selectById(follow.getFollowingId());
-                    return convertToFollowUserResponse(user, userId);
+                    User user = finalUserMap.get(follow.getFollowingId());
+                    return convertToFollowUserResponse(user, userId, followingIds);
                 })
                 .toList();
 
@@ -290,10 +307,25 @@ public class UserService {
 
         Page<UserFollow> result = userFollowMapper.selectPage(followPage, wrapper);
 
+        // 批量查询用户信息，解决 N+1 问题
+        List<Long> userIds = result.getRecords().stream()
+                .map(UserFollow::getFollowerId)
+                .toList();
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<User> users = userMapper.selectBatchIds(userIds);
+            userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+        }
+
+        // 批量查询关注状态
+        Set<Long> followingIds = getFollowingIds(userId, userIds);
+
+        final Map<Long, User> finalUserMap = userMap;
         List<FollowUserResponse> userList = result.getRecords().stream()
                 .map(follow -> {
-                    User user = userMapper.selectById(follow.getFollowerId());
-                    return convertToFollowUserResponse(user, userId);
+                    User user = finalUserMap.get(follow.getFollowerId());
+                    return convertToFollowUserResponse(user, userId, followingIds);
                 })
                 .toList();
 
@@ -301,6 +333,22 @@ public class UserService {
                 .list(userList)
                 .total(result.getTotal())
                 .build();
+    }
+
+    /**
+     * 批量获取当前用户已关注的用户ID集合
+     */
+    private Set<Long> getFollowingIds(Long currentUserId, List<Long> targetUserIds) {
+        if (targetUserIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserFollow::getFollowerId, currentUserId)
+                .in(UserFollow::getFollowingId, targetUserIds);
+        List<UserFollow> follows = userFollowMapper.selectList(wrapper);
+        return follows.stream()
+                .map(UserFollow::getFollowingId)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -332,9 +380,9 @@ public class UserService {
     /**
      * 转换为关注用户响应对象
      */
-    private FollowUserResponse convertToFollowUserResponse(User user, Long currentUserId) {
+    private FollowUserResponse convertToFollowUserResponse(User user, Long currentUserId, Set<Long> followingIds) {
         if (user == null) return null;
-        boolean isFollowing = checkIsFollowing(currentUserId, user.getId());
+        boolean isFollowing = followingIds.contains(user.getId());
         return FollowUserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())

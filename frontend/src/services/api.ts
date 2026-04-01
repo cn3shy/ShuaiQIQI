@@ -11,10 +11,43 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+// 是否正在刷新token
+let isRefreshing = false;
+// 重试队列
+let requests: Array<(token: string) => void> = [];
+
+// 刷新token
+const refreshToken = async (): Promise<string | null> => {
+  const refreshTokenStr = localStorage.getItem('refreshToken');
+  if (!refreshTokenStr) {
+    return null;
+  }
+  try {
+    const response = await axios.post('/api/auth/refresh-token', { refreshToken: refreshTokenStr });
+    if (response.data?.code === 200 || response.data?.code === 0) {
+      const { token, refreshToken: newRefreshToken } = response.data.data;
+      localStorage.setItem('token', token);
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      return token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// 清除认证信息
+const clearAuth = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('auth-storage');
+};
+
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
-    // 从localStorage获取token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -41,17 +74,50 @@ apiClient.interceptors.response.use(
 
     // 业务失败
     if (code === 401) {
-      // 未授权，清除token并跳转到登录页
-      localStorage.removeItem('token');
-      localStorage.removeItem('auth-storage');
+      clearAuth();
       window.location.href = '/login';
       return Promise.reject(new Error('未授权，请重新登录'));
     }
 
     return Promise.reject(new Error(message || '请求失败'));
   },
-  (error) => {
-    // 网络错误处理
+  async (error) => {
+    const originalRequest = error.config;
+
+    // HTTP 401 且未尝试过刷新
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        // 正在刷新，将请求加入队列
+        return new Promise((resolve) => {
+          requests.push((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(apiClient(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      const newToken = await refreshToken();
+
+      if (newToken) {
+        // 刷新成功，重试队列中的请求
+        requests.forEach((cb) => cb(newToken));
+        requests = [];
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } else {
+        // 刷新失败，清除认证信息并跳转登录
+        clearAuth();
+        window.location.href = '/login';
+      }
+
+      isRefreshing = false;
+    }
+
+    // 其他错误处理
     if (error.response) {
       switch (error.response.status) {
         case 404:

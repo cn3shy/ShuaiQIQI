@@ -3,7 +3,7 @@ import { Card, Avatar, Tabs, Row, Col, Spin, Empty, Button } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '@services/user';
-import { getContentList } from '@services/content';
+import { getMyContentList } from '@services/content';
 import { useAuthStore } from '@stores/auth';
 import ContentCard from '@components/ContentCard';
 import type { Content } from '@types';
@@ -46,12 +46,8 @@ const ProfilePage: React.FC = () => {
     if (!user) return;
     setMyContentsLoading(true);
     try {
-      const response = await getContentList({ page: 1, pageSize: 20 });
-      // 筛选当前用户的内容
-      const filtered = (response.data?.list || []).filter(
-        (c: Content) => c.author?.id === user.id
-      );
-      setMyContents(filtered);
+      const response = await getMyContentList({ page: 1, pageSize: 20 });
+      setMyContents(response.list || []);
     } catch (error) {
       console.error('加载我的内容失败:', error);
     } finally {

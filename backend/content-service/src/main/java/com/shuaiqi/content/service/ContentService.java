@@ -5,14 +5,18 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Content;
+import com.shuaiqi.content.feign.UserServiceClient;
 import com.shuaiqi.content.mapper.ContentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -25,9 +29,50 @@ public class ContentService {
 
     private final ContentMapper contentMapper;
     private final StringRedisTemplate redisTemplate;
+    private final UserServiceClient userServiceClient;
 
     private static final String CONTENT_LIKES_KEY = "content:likes:";
     private static final String CONTENT_FAVORITES_KEY = "content:favorites:";
+
+    /**
+     * 点赞 Lua 脚本：原子性检查并添加用户到集合，返回 1=成功 0=已点赞
+     */
+    private static final String LIKE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SADD', KEYS[1], ARGV[1]) " +
+            "return 1";
+
+    /**
+     * 取消点赞 Lua 脚本：原子性检查并移除用户，返回 1=成功 0=未点赞
+     */
+    private static final String UNLIKE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SREM', KEYS[1], ARGV[1]) " +
+            "return 1";
+
+    /**
+     * 收藏 Lua 脚本：原子性检查并添加用户到集合，返回 1=成功 0=已收藏
+     */
+    private static final String FAVORITE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SADD', KEYS[1], ARGV[1]) " +
+            "return 1";
+
+    /**
+     * 取消收藏 Lua 脚本：原子性检查并移除用户，返回 1=成功 0=未收藏
+     */
+    private static final String UNFAVORITE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SREM', KEYS[1], ARGV[1]) " +
+            "return 1";
 
     /**
      * 获取内容列表
@@ -41,6 +86,10 @@ public class ContentService {
 
         if (params.getCategoryId() != null) {
             wrapper.eq(Content::getCategoryId, params.getCategoryId());
+        }
+
+        if (params.getAuthorId() != null) {
+            wrapper.eq(Content::getAuthorId, params.getAuthorId());
         }
 
         if (params.getKeyword() != null && !params.getKeyword().isEmpty()) {
@@ -123,7 +172,7 @@ public class ContentService {
     @Transactional
     public ContentResponse updateContent(Long contentId, CreateContentRequest request, Long userId) {
         Content content = contentMapper.selectById(contentId);
-        if (content == null) {
+        if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
         if (!content.getAuthorId().equals(userId)) {
@@ -162,8 +211,9 @@ public class ContentService {
     }
 
     /**
-     * 点赞内容
+     * 点赞内容（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void likeContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
@@ -173,18 +223,24 @@ public class ContentService {
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(LIKE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("已经点赞过了");
         }
 
-        redisTemplate.opsForSet().add(key, userIdStr);
-        content.setLikeCount(content.getLikeCount() + 1);
-        contentMapper.updateById(content);
+        // 使用原子 SQL 更新点赞数
+        int rows = contentMapper.incrementLikeCount(contentId);
+        if (rows == 0) {
+            throw BusinessException.error("点赞失败");
+        }
     }
 
     /**
-     * 取消点赞
+     * 取消点赞（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void unlikeContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
@@ -194,18 +250,21 @@ public class ContentService {
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        if (!Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLIKE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("还没有点赞");
         }
 
-        redisTemplate.opsForSet().remove(key, userIdStr);
-        content.setLikeCount(Math.max(0, content.getLikeCount() - 1));
-        contentMapper.updateById(content);
+        // 使用原子 SQL 更新点赞数
+        contentMapper.decrementLikeCount(contentId);
     }
 
     /**
-     * 收藏内容
+     * 收藏内容（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void favoriteContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
@@ -215,18 +274,24 @@ public class ContentService {
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(FAVORITE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("已经收藏过了");
         }
 
-        redisTemplate.opsForSet().add(key, userIdStr);
-        content.setFavoriteCount(content.getFavoriteCount() + 1);
-        contentMapper.updateById(content);
+        // 使用原子 SQL 更新收藏数
+        int rows = contentMapper.incrementFavoriteCount(contentId);
+        if (rows == 0) {
+            throw BusinessException.error("收藏失败");
+        }
     }
 
     /**
-     * 取消收藏
+     * 取消收藏（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void unfavoriteContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
@@ -236,13 +301,15 @@ public class ContentService {
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        if (!Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNFAVORITE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("还没有收藏");
         }
 
-        redisTemplate.opsForSet().remove(key, userIdStr);
-        content.setFavoriteCount(Math.max(0, content.getFavoriteCount() - 1));
-        contentMapper.updateById(content);
+        // 使用原子 SQL 更新收藏数
+        contentMapper.decrementFavoriteCount(contentId);
     }
 
     /**
@@ -268,17 +335,13 @@ public class ContentService {
     }
 
     /**
-     * 更新评论数（服务间调用）
+     * 更新评论数（使用原子 SQL 防止丢失更新）
      */
-    @Transactional
     public void updateCommentCount(Long contentId, Integer increment) {
-        Content content = contentMapper.selectById(contentId);
-        if (content == null) {
+        int rows = contentMapper.updateCommentCount(contentId, increment);
+        if (rows == 0) {
             throw BusinessException.notFound("内容不存在");
         }
-        content.setCommentCount(Math.max(0, content.getCommentCount() + increment));
-        content.setUpdateTime(LocalDateTime.now());
-        contentMapper.updateById(content);
     }
 
     /**
@@ -298,10 +361,29 @@ public class ContentService {
 
         ContentResponse.AuthorInfo authorInfo = null;
         if (content.getAuthorId() != null) {
+            String authorName = content.getAuthorName();
+            String authorAvatar = content.getAuthorAvatar();
+
+            // 如果作者信息未填充，通过 Feign 获取
+            if (authorName == null) {
+                try {
+                    Map<String, Object> userDetail = userServiceClient.getUserDetail(content.getAuthorId());
+                    if (userDetail != null && userDetail.containsKey("data")) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> userData = (Map<String, Object>) userDetail.get("data");
+                        authorName = (String) userData.get("username");
+                        authorAvatar = (String) userData.get("avatar");
+                    }
+                } catch (Exception e) {
+                    log.warn("获取作者信息失败: authorId={}", content.getAuthorId(), e);
+                    authorName = "未知用户";
+                }
+            }
+
             authorInfo = ContentResponse.AuthorInfo.builder()
                     .id(content.getAuthorId())
-                    .username(content.getAuthorName() != null ? content.getAuthorName() : "未知用户")
-                    .avatar(content.getAuthorAvatar())
+                    .username(authorName != null ? authorName : "未知用户")
+                    .avatar(authorAvatar)
                     .build();
         }
 

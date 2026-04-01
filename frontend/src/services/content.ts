@@ -1,5 +1,6 @@
 // 内容服务API
 import request from './api';
+import { convertPageResponse } from '@utils/page';
 import type {
   Content,
   Category,
@@ -9,8 +10,15 @@ import type {
 } from '@types';
 
 // 获取内容列表
-export const getContentList = (params: ContentListParams = {}) => {
-  return request.get<ContentListResponse>('/content/list', { params });
+export const getContentList = async (params: ContentListParams = {}) => {
+  const res = await request.get<any>('/content/list', { params });
+  return convertPageResponse<Content>(res.data);
+};
+
+// 获取当前用户的内容
+export const getMyContentList = async (params: ContentListParams = {}) => {
+  const res = await request.get<any>('/content/my', { params });
+  return convertPageResponse<Content>(res.data);
 };
 
 // 获取内容详情
@@ -64,11 +72,13 @@ export const getCategoryDetail = (id: string) => {
 };
 
 // 获取推荐内容
-export const getRecommendContent = (params: PageParams = {}) => {
-  return request.get<ContentListResponse>('/content/recommend', { params });
+export const getRecommendContent = async (params: PageParams = {}) => {
+  const res = await request.get<any>('/content/recommend', { params });
+  return convertPageResponse<Content>(res.data);
 };
 
 // 获取热门内容
-export const getHotContent = (params: PageParams = {}) => {
-  return request.get<ContentListResponse>('/content/hot', { params });
+export const getHotContent = async (params: PageParams = {}) => {
+  const res = await request.get<any>('/content/hot', { params });
+  return convertPageResponse<Content>(res.data);
 };

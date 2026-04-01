@@ -9,7 +9,7 @@ import com.shuaiqi.common.utils.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final StringRedisTemplate redisTemplate;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     private static final String TOKEN_PREFIX = "user:token:";
     private static final String USER_TOKEN_INDEX_PREFIX = "user:token:index:";

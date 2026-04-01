@@ -1,5 +1,6 @@
 // 评论服务API
 import request from './api';
+import { convertPageResponse } from '@utils/page';
 import type {
   Comment,
   CreateCommentRequest,
@@ -7,8 +8,9 @@ import type {
 } from '@types';
 
 // 获取评论列表
-export const getCommentList = (contentId: string, params: PageParams = {}) => {
-  return request.get<{ list: Comment[]; total: number }>(`/comment/content/${contentId}`, { params });
+export const getCommentList = async (contentId: string, params: PageParams = {}) => {
+  const res = await request.get<any>(`/comment/content/${contentId}`, { params });
+  return convertPageResponse<Comment>(res.data);
 };
 
 // 发布评论

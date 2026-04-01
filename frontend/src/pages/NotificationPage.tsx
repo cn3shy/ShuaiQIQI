@@ -1,6 +1,6 @@
 // 通知页面
 import React, { useState, useEffect } from 'react';
-import { List, Card, Button, Space, Tag, Empty, Spin, message, Popconfirm } from 'antd';
+import { List, Card, Button, Space, Tag, Empty, Spin, message, Popconfirm, Pagination } from 'antd';
 import {
   CommentOutlined,
   LikeOutlined,
@@ -16,12 +16,15 @@ const NotificationPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
 
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const data = await getNotificationList({ page, pageSize: 20 });
+      const data = await getNotificationList({ page, pageSize });
       setNotifications(data.data?.list || []);
+      setTotal(data.data?.total || 0);
     } catch (error) {
       console.error('加载通知失败:', error);
     } finally {
@@ -59,6 +62,7 @@ const NotificationPage: React.FC = () => {
     try {
       await deleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setTotal((t) => Math.max(0, t - 1));
       message.success('删除成功');
     } catch {
       message.error('删除失败');
@@ -97,59 +101,69 @@ const NotificationPage: React.FC = () => {
         {notifications.length === 0 ? (
           <Empty description="暂无通知" />
         ) : (
-          <List
-            dataSource={notifications}
-            renderItem={(item) => (
-              <Card
-                style={{
-                  marginBottom: 16,
-                  backgroundColor: item.isRead ? '#fff' : '#f6ffed',
-                }}
-              >
-                <List.Item
-                  actions={[
-                    !item.isRead && (
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => handleMarkAsRead(item.id)}
-                      >
-                        标记已读
-                      </Button>
-                    ),
-                    <Popconfirm
-                      title="确定删除此通知？"
-                      onConfirm={() => handleDelete(item.id)}
-                      okText="确定"
-                      cancelText="取消"
-                    >
-                      <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                        删除
-                      </Button>
-                    </Popconfirm>,
-                  ].filter(Boolean)}
+          <>
+            <List
+              dataSource={notifications}
+              renderItem={(item) => (
+                <Card
+                  style={{
+                    marginBottom: 16,
+                    backgroundColor: item.isRead ? '#fff' : '#f6ffed',
+                  }}
                 >
-                  <List.Item.Meta
-                    avatar={getIcon(item.type)}
-                    title={
-                      <Space>
-                        {item.title}
-                        {!item.isRead && <Tag color="green">未读</Tag>}
-                      </Space>
-                    }
-                    description={
-                      <div>
-                        <div style={{ marginBottom: 8 }}>{item.content}</div>
-                        <div style={{ color: '#999', fontSize: 12 }}>
-                          {new Date(item.createTime).toLocaleString()}
+                  <List.Item
+                    actions={[
+                      !item.isRead && (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => handleMarkAsRead(item.id)}
+                        >
+                          标记已读
+                        </Button>
+                      ),
+                      <Popconfirm
+                        title="确定删除此通知？"
+                        onConfirm={() => handleDelete(item.id)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                          删除
+                        </Button>
+                      </Popconfirm>,
+                    ].filter(Boolean)}
+                  >
+                    <List.Item.Meta
+                      avatar={getIcon(item.type)}
+                      title={
+                        <Space>
+                          {item.title}
+                          {!item.isRead && <Tag color="green">未读</Tag>}
+                        </Space>
+                      }
+                      description={
+                        <div>
+                          <div style={{ marginBottom: 8 }}>{item.content}</div>
+                          <div style={{ color: '#999', fontSize: 12 }}>
+                            {new Date(item.createTime).toLocaleString()}
+                          </div>
                         </div>
-                      </div>
-                    }
-                  />
-                </List.Item>
-              </Card>
-            )}
-          />
+                      }
+                    />
+                  </List.Item>
+                </Card>
+              )}
+            />
+            <Pagination
+              current={page}
+              total={total}
+              pageSize={pageSize}
+              onChange={setPage}
+              style={{ textAlign: 'center', marginTop: 24 }}
+              showSizeChanger={false}
+            />
+          </>
         )}
       </Spin>
     </div>

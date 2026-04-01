@@ -1,5 +1,6 @@
 // 用户服务API
 import request from './api';
+import { convertPageResponse } from '@utils/page';
 import type { User } from '@types';
 
 // 获取当前用户信息
@@ -30,8 +31,9 @@ export const getUserDetail = (userId: string) => {
 };
 
 // 获取用户列表（管理员）
-export const getUserList = (params: { page?: number; pageSize?: number; keyword?: string }) => {
-  return request.get<{ list: User[]; total: number }>('/user/list', { params });
+export const getUserList = async (params: { page?: number; pageSize?: number; keyword?: string }) => {
+  const res = await request.get<any>('/user/list', { params });
+  return convertPageResponse<User>(res.data);
 };
 
 // 删除用户（管理员）

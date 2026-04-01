@@ -42,6 +42,20 @@ public class ContentController {
     }
 
     /**
+     * 获取当前用户的内容
+     */
+    @Operation(summary = "获取我的内容", description = "分页获取当前用户发布的内容")
+    @GetMapping("/my")
+    public Result<Page<ContentResponse>> getMyContentList(
+            @ModelAttribute ContentListParams params,
+            HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        params.setAuthorId(userId);
+        Page<ContentResponse> contentList = contentService.getContentList(params, userId);
+        return Result.success(contentList);
+    }
+
+    /**
      * 获取内容详情
      */
     @Operation(summary = "获取内容详情", description = "根据ID获取内容详情")

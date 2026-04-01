@@ -11,10 +11,12 @@ import com.shuaiqi.comment.feign.ContentServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,6 +34,26 @@ public class CommentService {
     private final ContentServiceClient contentServiceClient;
 
     private static final String COMMENT_LIKES_KEY = "comment:likes:";
+
+    /**
+     * 评论点赞 Lua 脚本
+     */
+    private static final String COMMENT_LIKE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SADD', KEYS[1], ARGV[1]) " +
+            "return 1";
+
+    /**
+     * 评论取消点赞 Lua 脚本
+     */
+    private static final String COMMENT_UNLIKE_LUA_SCRIPT =
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then " +
+            "    return 0 " +
+            "end " +
+            "redis.call('SREM', KEYS[1], ARGV[1]) " +
+            "return 1";
 
     /**
      * 获取内容的评论列表
@@ -71,6 +93,24 @@ public class CommentService {
      */
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, Long userId) {
+        // 验证内容是否存在
+        try {
+            contentServiceClient.getContentDetail(request.getContentId());
+        } catch (Exception e) {
+            throw BusinessException.notFound("内容不存在，无法评论");
+        }
+
+        // 如果是回复评论，验证父评论是否存在且属于同一内容
+        if (request.getParentId() != null) {
+            Comment parentComment = commentMapper.selectById(request.getParentId());
+            if (parentComment == null || parentComment.getStatus() != 1) {
+                throw BusinessException.notFound("回复的评论不存在");
+            }
+            if (!parentComment.getContentId().equals(request.getContentId())) {
+                throw BusinessException.badRequest("父评论不属于该内容");
+            }
+        }
+
         Comment comment = new Comment();
         comment.setContent(request.getContent());
         comment.setContentId(request.getContentId());
@@ -87,7 +127,7 @@ public class CommentService {
         try {
             contentServiceClient.updateCommentCount(request.getContentId(), 1);
         } catch (Exception e) {
-            log.error("更新内容评论数失败", e);
+            log.error("更新内容评论数失败，评论内容已创建但计数未同步: contentId={}", request.getContentId(), e);
         }
 
         return convertToResponse(comment, userId);
@@ -120,8 +160,9 @@ public class CommentService {
     }
 
     /**
-     * 点赞评论
+     * 点赞评论（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void likeComment(Long commentId, Long userId) {
         Comment comment = commentMapper.selectById(commentId);
         if (comment == null || comment.getStatus() != 1) {
@@ -131,18 +172,24 @@ public class CommentService {
         String key = COMMENT_LIKES_KEY + commentId;
         String userIdStr = userId.toString();
 
-        if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_LIKE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("已经点赞过了");
         }
 
-        redisTemplate.opsForSet().add(key, userIdStr);
-        comment.setLikeCount(comment.getLikeCount() + 1);
-        commentMapper.updateById(comment);
+        // 使用原子 SQL 更新点赞数
+        int rows = commentMapper.incrementLikeCount(commentId);
+        if (rows == 0) {
+            throw BusinessException.error("点赞失败");
+        }
     }
 
     /**
-     * 取消点赞评论
+     * 取消点赞评论（使用 Lua 脚本保证原子性）
      */
+    @Transactional
     public void unlikeComment(Long commentId, Long userId) {
         Comment comment = commentMapper.selectById(commentId);
         if (comment == null || comment.getStatus() != 1) {
@@ -152,13 +199,15 @@ public class CommentService {
         String key = COMMENT_LIKES_KEY + commentId;
         String userIdStr = userId.toString();
 
-        if (!Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, userIdStr))) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_UNLIKE_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+
+        if (result == null || result == 0) {
             throw BusinessException.badRequest("还没有点赞");
         }
 
-        redisTemplate.opsForSet().remove(key, userIdStr);
-        comment.setLikeCount(Math.max(0, comment.getLikeCount() - 1));
-        commentMapper.updateById(comment);
+        // 使用原子 SQL 更新点赞数
+        commentMapper.decrementLikeCount(commentId);
     }
 
     /**
