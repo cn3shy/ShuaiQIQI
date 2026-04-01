@@ -362,6 +362,13 @@ public class UserService {
     }
 
     /**
+     * 获取用户总数
+     */
+    public Long getUserCount() {
+        return userMapper.selectCount(null);
+    }
+
+    /**
      * 转换为响应对象
      */
     private UserInfoResponse convertToResponse(User user) {

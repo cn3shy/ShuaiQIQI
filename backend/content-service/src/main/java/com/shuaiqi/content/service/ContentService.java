@@ -350,6 +350,28 @@ public class ContentService {
     }
 
     /**
+     * 获取内容总数
+     */
+    public Long getContentCount() {
+        LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Content::getStatus, 1);
+        return contentMapper.selectCount(wrapper);
+    }
+
+    /**
+     * 获取总点赞数
+     */
+    public Long getTotalLikes() {
+        // 从数据库汇总所有内容的点赞数
+        LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Content::getStatus, 1);
+        wrapper.select(Content::getLikeCount);
+        return contentMapper.selectList(wrapper).stream()
+                .mapToLong(Content::getLikeCount)
+                .sum();
+    }
+
+    /**
      * 转换为响应对象
      */
     private ContentResponse convertToResponse(Content content, Long currentUserId) {

@@ -160,6 +160,15 @@ public class UserController {
     }
 
     /**
+     * 获取用户总数（管理员）
+     */
+    @GetMapping("/count")
+    public Result<Long> getUserCount() {
+        Long count = userService.getUserCount();
+        return Result.success(count);
+    }
+
+    /**
      * 从请求中获取用户ID
      */
     private Long getUserIdFromRequest(HttpServletRequest request) {

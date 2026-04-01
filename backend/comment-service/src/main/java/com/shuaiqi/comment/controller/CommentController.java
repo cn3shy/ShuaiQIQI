@@ -108,4 +108,13 @@ public class CommentController {
             return null;
         }
     }
+
+    /**
+     * 获取评论总数（管理员）
+     */
+    @GetMapping("/count")
+    public Result<Long> getCommentCount() {
+        Long count = commentService.getCommentCount();
+        return Result.success(count);
+    }
 }

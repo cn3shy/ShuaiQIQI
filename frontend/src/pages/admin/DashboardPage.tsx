@@ -7,6 +7,7 @@ import {
   CommentOutlined,
   LikeOutlined,
 } from '@ant-design/icons';
+import request from '@services/api';
 
 interface DashboardData {
   totalContent: number;
@@ -25,18 +26,31 @@ const AdminDashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
-    // 模拟加载数据
-    setLoading(true);
-    setTimeout(() => {
-      setData({
-        totalContent: 1256,
-        totalUsers: 8432,
-        totalComments: 5621,
-        totalLikes: 28934,
-      });
-      setLoading(false);
-    }, 500);
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [contentRes, userRes, commentRes, likesRes] = await Promise.all([
+        request.get<number>('/content/count'),
+        request.get<number>('/user/count'),
+        request.get<number>('/comment/count'),
+        request.get<number>('/content/likes/count'),
+      ]);
+
+      setData({
+        totalContent: contentRes.data || 0,
+        totalUsers: userRes.data || 0,
+        totalComments: commentRes.data || 0,
+        totalLikes: likesRes.data || 0,
+      });
+    } catch (error) {
+      console.error('加载仪表盘数据失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>

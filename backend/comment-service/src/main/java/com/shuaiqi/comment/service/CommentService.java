@@ -213,6 +213,15 @@ public class CommentService {
     }
 
     /**
+     * 获取评论总数
+     */
+    public Long getCommentCount() {
+        LambdaQueryWrapper<Comment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Comment::getStatus, 1);
+        return commentMapper.selectCount(wrapper);
+    }
+
+    /**
      * 获取子评论
      */
     private List<CommentResponse> getChildComments(Long parentId, Long currentUserId) {

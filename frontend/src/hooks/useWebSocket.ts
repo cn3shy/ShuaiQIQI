@@ -7,14 +7,24 @@ interface UseWebSocketOptions {
   userId?: string;
   onNotification?: (notification: Notification) => void;
   reconnectInterval?: number;
+  maxReconnectAttempts?: number;
 }
 
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_INTERVAL = 3000;
+const MAX_RECONNECT_INTERVAL = 60000;
+
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
-  const { userId, onNotification, reconnectInterval = 5000 } = options;
+  const { userId, onNotification, reconnectInterval = BASE_RECONNECT_INTERVAL, maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
+
+  const getReconnectDelay = useCallback((attempt: number) => {
+    return Math.min(BASE_RECONNECT_INTERVAL * Math.pow(2, attempt), MAX_RECONNECT_INTERVAL);
+  }, []);
 
   const connect = useCallback(() => {
     if (!userId) return;
@@ -30,6 +40,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
+        reconnectAttemptsRef.current = 0;
         if (!isUnmountedRef.current) {
           setIsConnected(true);
         }
@@ -57,11 +68,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         if (reconnectTimerRef.current) {
           clearTimeout(reconnectTimerRef.current);
         }
-        if (!isUnmountedRef.current) {
+
+        const attempts = reconnectAttemptsRef.current;
+        if (attempts < maxReconnectAttempts && !isUnmountedRef.current) {
+          reconnectAttemptsRef.current = attempts + 1;
+          const delay = getReconnectDelay(attempts);
+          console.log(`将在 ${delay}ms 后尝试重新连接 (${attempts + 1}/${maxReconnectAttempts})`);
           reconnectTimerRef.current = setTimeout(() => {
-            console.log('尝试重新连接...');
             connect();
-          }, reconnectInterval);
+          }, delay);
+        } else if (attempts >= maxReconnectAttempts) {
+          console.warn('WebSocket 达到最大重连次数，停止重连');
         }
       };
 
@@ -76,7 +93,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     } catch (error) {
       console.error('WebSocket 连接失败:', error);
     }
-  }, [userId, onNotification, reconnectInterval]);
+  }, [userId, onNotification, maxReconnectAttempts, getReconnectDelay]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -90,6 +107,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     if (!isUnmountedRef.current) {
       setIsConnected(false);
     }
+    reconnectAttemptsRef.current = 0;
   }, []);
 
   const send = useCallback((data: string) => {

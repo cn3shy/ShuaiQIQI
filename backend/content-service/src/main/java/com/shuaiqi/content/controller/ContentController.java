@@ -219,6 +219,24 @@ public class ContentController {
     }
 
     /**
+     * 获取内容总数（管理员）
+     */
+    @GetMapping("/count")
+    public Result<Long> getContentCount() {
+        Long count = contentService.getContentCount();
+        return Result.success(count);
+    }
+
+    /**
+     * 获取总点赞数（管理员）
+     */
+    @GetMapping("/likes/count")
+    public Result<Long> getTotalLikes() {
+        Long count = contentService.getTotalLikes();
+        return Result.success(count);
+    }
+
+    /**
      * 从请求中获取用户ID
      */
     private Long getUserIdFromRequest(HttpServletRequest request) {
