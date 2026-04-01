@@ -30,7 +30,7 @@ public class CommentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequest(request);
+        Long currentUserId = getUserIdFromRequestOrNull(request);
         Page<CommentResponse> comments = commentService.getCommentsByContentId(contentId, page, pageSize, currentUserId);
         return Result.success(comments);
     }
@@ -92,5 +92,20 @@ public class CommentController {
             throw BusinessException.unauthorized("请先登录");
         }
         return Long.parseLong(userId);
+    }
+
+    /**
+     * 从请求中获取用户ID，允许匿名访问
+     */
+    private Long getUserIdFromRequestOrNull(HttpServletRequest request) {
+        String userId = request.getHeader("X-User-Id");
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(userId);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

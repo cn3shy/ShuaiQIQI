@@ -36,7 +36,7 @@ public class ContentController {
     public Result<Page<ContentResponse>> getContentList(
             @ModelAttribute ContentListParams params,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequest(request);
+        Long currentUserId = getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getContentList(params, currentUserId);
         return Result.success(contentList);
     }
@@ -49,7 +49,7 @@ public class ContentController {
     public Result<ContentResponse> getContentDetail(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequest(request);
+        Long currentUserId = getUserIdFromRequestOrNull(request);
         ContentResponse content = contentService.getContentDetail(id, currentUserId);
         return Result.success(content);
     }
@@ -174,7 +174,7 @@ public class ContentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequest(request);
+        Long currentUserId = getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getRecommendContent(page, pageSize, currentUserId);
         return Result.success(contentList);
     }
@@ -188,7 +188,7 @@ public class ContentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequest(request);
+        Long currentUserId = getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getHotContent(page, pageSize, currentUserId);
         return Result.success(contentList);
     }
@@ -213,5 +213,20 @@ public class ContentController {
             throw BusinessException.unauthorized("请先登录");
         }
         return Long.parseLong(userId);
+    }
+
+    /**
+     * 从请求中获取用户ID，允许匿名访问
+     */
+    private Long getUserIdFromRequestOrNull(HttpServletRequest request) {
+        String userId = request.getHeader("X-User-Id");
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(userId);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

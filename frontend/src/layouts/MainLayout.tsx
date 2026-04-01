@@ -88,7 +88,7 @@ const MainLayout: React.FC = () => {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[location.pathname.startsWith('/content/') ? '/content' : location.pathname.startsWith('/profile/') ? '/profile' : location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
         />

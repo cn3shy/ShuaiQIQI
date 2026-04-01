@@ -1,7 +1,7 @@
 /**
  * 主页
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Row, Col, Empty, Spin, Tabs, Input, Card } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import ContentCard from '@components/ContentCard';
@@ -18,8 +18,15 @@ const HomePage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const { history, addHistory, removeHistory, clearHistory } = useSearchHistory();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadContents = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     try {
       let data;
@@ -36,11 +43,17 @@ const HomePage: React.FC = () => {
         default:
           data = await getContentList({ ...params, sortBy: 'latest' });
       }
-      setContents(data.data?.list || []);
+      if (!controller.signal.aborted) {
+        setContents(data.data?.list || []);
+      }
     } catch (error) {
-      console.error('加载内容失败:', error);
+      if (!controller.signal.aborted) {
+        console.error('加载内容失败:', error);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -98,6 +111,11 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     loadContents();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [activeTab]);
 
   const tabItems = [
