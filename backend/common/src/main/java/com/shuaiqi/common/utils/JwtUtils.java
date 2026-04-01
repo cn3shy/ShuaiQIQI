@@ -17,7 +17,7 @@ import java.util.Map;
 @Slf4j
 public class JwtUtils {
 
-    private static final String SECRET_KEY = "shuaiqi-qi-secret-key-2024-01-01";
+    private static final String SECRET_KEY = System.getenv().getOrDefault("JWT_SECRET_KEY", "shuaiqi-qi-secret-key-2024-01-01-must-be-at-least-256-bits-long-for-hs256");
     private static final long ACCESS_TOKEN_EXPIRE = 3600 * 1000L * 24; // 24小时
     private static final long REFRESH_TOKEN_EXPIRE = 3600 * 1000L * 24 * 7; // 7天
 

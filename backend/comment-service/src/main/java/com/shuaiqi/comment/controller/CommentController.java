@@ -1,6 +1,7 @@
 package com.shuaiqi.comment.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
 import com.shuaiqi.comment.dto.CommentResponse;
 import com.shuaiqi.comment.dto.CreateCommentRequest;
@@ -88,7 +89,7 @@ public class CommentController {
     private Long getUserIdFromRequest(HttpServletRequest request) {
         String userId = request.getHeader("X-User-Id");
         if (userId == null || userId.isEmpty()) {
-            return null;
+            throw BusinessException.unauthorized("请先登录");
         }
         return Long.parseLong(userId);
     }

@@ -31,6 +31,15 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleAvatarCustomRequest = async ({ file, onSuccess, onError }: any) => {
+    try {
+      await handleAvatarUpload(file as File);
+      onSuccess?.('ok');
+    } catch (err) {
+      onError?.(err);
+    }
+  };
+
   const handleInfoSubmit = async (values: Partial<User>) => {
     if (!user) return;
     setLoading(true);
@@ -93,10 +102,7 @@ const SettingsPage: React.FC = () => {
           <Upload
             name="file"
             showUploadList={false}
-            customRequest={({ file, onSuccess }) => {
-              handleAvatarUpload(file as File);
-              onSuccess?.('ok', new XMLHttpRequest());
-            }}
+            customRequest={handleAvatarCustomRequest}
           >
             <Button icon={<EditOutlined />}>上传头像</Button>
           </Upload>

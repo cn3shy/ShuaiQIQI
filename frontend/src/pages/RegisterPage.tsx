@@ -17,7 +17,8 @@ const RegisterPage: React.FC = () => {
   const handleFinish = async (values: any) => {
     setLoading(true);
     try {
-      const response = await register(values);
+      const { confirmPassword, ...registerData } = values;
+      const response = await register(registerData);
       setAuth(response.data);
       message.success('注册成功，欢迎加入帅气气！');
       navigate('/');

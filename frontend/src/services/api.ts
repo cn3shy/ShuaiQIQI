@@ -29,6 +29,9 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
+    if (!response.data) {
+      return response;
+    }
     const { code, message } = response.data;
 
     // 业务成功
@@ -38,8 +41,9 @@ apiClient.interceptors.response.use(
 
     // 业务失败
     if (code === 401) {
-      // 未授权，跳转到登录页
+      // 未授权，清除token并跳转到登录页
       localStorage.removeItem('token');
+      localStorage.removeItem('auth-storage');
       window.location.href = '/login';
       return Promise.reject(new Error('未授权，请重新登录'));
     }

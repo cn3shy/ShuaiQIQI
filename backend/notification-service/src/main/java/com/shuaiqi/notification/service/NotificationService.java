@@ -1,6 +1,7 @@
 package com.shuaiqi.notification.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shuaiqi.common.exception.BusinessException;
@@ -26,6 +27,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final ObjectMapper objectMapper;
 
     /**
      * 获取通知列表
@@ -77,15 +79,11 @@ public class NotificationService {
      */
     @Transactional
     public void markAllAsRead(Long userId) {
-        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
+        LambdaUpdateWrapper<Notification> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(Notification::getUserId, userId)
-                .eq(Notification::getIsRead, false);
-
-        List<Notification> notifications = notificationMapper.selectList(wrapper);
-        notifications.forEach(notification -> {
-            notification.setIsRead(true);
-            notificationMapper.updateById(notification);
-        });
+                .eq(Notification::getIsRead, false)
+                .set(Notification::getIsRead, true);
+        notificationMapper.update(null, wrapper);
     }
 
     /**
@@ -135,7 +133,6 @@ public class NotificationService {
         // 通过 WebSocket 实时推送通知
         try {
             NotificationResponse response = convertToResponse(notification);
-            ObjectMapper objectMapper = new ObjectMapper();
             String json = objectMapper.writeValueAsString(response);
             WebSocketServer.sendMessage(userId.toString(), json);
         } catch (Exception e) {

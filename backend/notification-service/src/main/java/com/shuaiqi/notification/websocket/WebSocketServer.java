@@ -1,7 +1,6 @@
 package com.shuaiqi.notification.websocket;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
@@ -13,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * WebSocket 服务端
  */
 @Slf4j
-@Component
 @ServerEndpoint("/ws/notification/{userId}")
 public class WebSocketServer {
 

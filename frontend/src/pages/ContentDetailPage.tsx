@@ -68,11 +68,11 @@ const ContentDetailPage: React.FC = () => {
       } else {
         await likeContent(content.id);
       }
-      setContent({
-        ...content,
-        isLiked: !content.isLiked,
-        likeCount: content.isLiked ? content.likeCount - 1 : content.likeCount + 1,
-      });
+      setContent(prev => prev ? {
+        ...prev,
+        isLiked: !prev.isLiked,
+        likeCount: prev.isLiked ? prev.likeCount - 1 : prev.likeCount + 1,
+      } : null);
     } catch (error) {
       const err = error as Error;
       message.error(err.message || '操作失败');
@@ -87,11 +87,11 @@ const ContentDetailPage: React.FC = () => {
       } else {
         await favoriteContent(content.id);
       }
-      setContent({
-        ...content,
-        isFavorited: !content.isFavorited,
-        favoriteCount: content.isFavorited ? content.favoriteCount - 1 : content.favoriteCount + 1,
-      });
+      setContent(prev => prev ? {
+        ...prev,
+        isFavorited: !prev.isFavorited,
+        favoriteCount: prev.isFavorited ? prev.favoriteCount - 1 : prev.favoriteCount + 1,
+      } : null);
     } catch (error) {
       const err = error as Error;
       message.error(err.message || '操作失败');
@@ -109,12 +109,12 @@ const ContentDetailPage: React.FC = () => {
         contentId: content.id,
         content: values.content,
       });
-      setComments([response.data, ...comments]);
+      setComments(prev => [response.data, ...prev]);
       setCommentTotal(commentTotal + 1);
-      setContent({
-        ...content,
-        commentCount: content.commentCount + 1,
-      });
+      setContent(prev => prev ? {
+        ...prev,
+        commentCount: prev.commentCount + 1,
+      } : null);
       message.success('评论成功');
     } catch (error) {
       const err = error as Error;
@@ -135,12 +135,12 @@ const ContentDetailPage: React.FC = () => {
       } else {
         await likeComment(commentId);
       }
-      setComments(comments.map((c) =>
+      setComments(prev => prev.map((c) =>
         c.id === commentId
           ? {
               ...c,
-              isLiked: !isLiked,
-              likeCount: isLiked ? c.likeCount - 1 : c.likeCount + 1,
+              isLiked: !c.isLiked,
+              likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
             }
           : c
       ));

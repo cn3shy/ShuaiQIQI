@@ -16,11 +16,7 @@ export const updateUserInfo = (data: Partial<User>) => {
 export const uploadAvatar = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  return request.post<{ url: string }>('/user/avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  return request.post<{ url: string }>('/user/avatar', formData);
 };
 
 // 修改密码

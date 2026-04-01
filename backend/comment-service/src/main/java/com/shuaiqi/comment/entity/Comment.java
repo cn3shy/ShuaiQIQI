@@ -24,6 +24,10 @@ public class Comment implements Serializable {
 
     private Long userId;
 
+    private String userName;
+
+    private String userAvatar;
+
     private Long parentId;
 
     private Integer likeCount;

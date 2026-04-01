@@ -30,6 +30,12 @@ public class Content implements Serializable {
 
     private Long categoryId;
 
+    private Integer viewCount;
+
+    private String authorName;
+
+    private String authorAvatar;
+
     private Integer likeCount;
 
     private Integer favoriteCount;

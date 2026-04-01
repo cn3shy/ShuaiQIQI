@@ -186,6 +186,15 @@ public class CommentService {
             isLiked = Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(key, currentUserId.toString()));
         }
 
+        CommentResponse.UserInfo userInfo = null;
+        if (comment.getUserId() != null) {
+            userInfo = CommentResponse.UserInfo.builder()
+                    .id(comment.getUserId())
+                    .username(comment.getUserName() != null ? comment.getUserName() : "未知用户")
+                    .avatar(comment.getUserAvatar())
+                    .build();
+        }
+
         return CommentResponse.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
@@ -193,6 +202,7 @@ public class CommentService {
                 .parentId(comment.getParentId())
                 .likeCount(comment.getLikeCount())
                 .isLiked(isLiked)
+                .user(userInfo)
                 .createTime(comment.getCreateTime())
                 .build();
     }

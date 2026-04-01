@@ -34,7 +34,7 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => set((state) => ({ user, isAuthenticated: user !== null })),
 
       clearAuth: () => {
         localStorage.removeItem('token');
@@ -53,7 +53,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
-        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

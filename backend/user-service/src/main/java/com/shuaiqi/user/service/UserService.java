@@ -1,6 +1,7 @@
 package com.shuaiqi.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.user.dto.*;
@@ -17,6 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -34,7 +37,7 @@ public class UserService {
     private final UserFollowMapper userFollowMapper;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    private static final String UPLOAD_DIR = "uploads/avatars/";
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator + "avatars" + File.separator;
 
     /**
      * 获取用户信息
@@ -104,6 +107,10 @@ public class UserService {
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || !originalFilename.matches(".*\\.(jpg|jpeg|png|gif)$")) {
             throw BusinessException.badRequest("只支持jpg、jpeg、png、gif格式的图片");
+        }
+
+        if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
+            throw BusinessException.badRequest("非法的文件名");
         }
 
         // 验证文件大小 (最大5MB)
@@ -326,6 +333,7 @@ public class UserService {
      * 转换为关注用户响应对象
      */
     private FollowUserResponse convertToFollowUserResponse(User user, Long currentUserId) {
+        if (user == null) return null;
         boolean isFollowing = checkIsFollowing(currentUserId, user.getId());
         return FollowUserResponse.builder()
                 .id(user.getId())

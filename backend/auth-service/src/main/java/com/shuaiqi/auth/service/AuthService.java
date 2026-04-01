@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +33,7 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final String TOKEN_PREFIX = "user:token:";
+    private static final String USER_TOKEN_INDEX_PREFIX = "user:token:index:";
     private static final String REFRESH_TOKEN_PREFIX = "user:refresh:";
 
     /**
@@ -130,6 +132,9 @@ public class AuthService {
             throw BusinessException.unauthorized("刷新Token无效");
         }
 
+        // 删除旧刷新Token (轮换)
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+
         // 生成新的Token
         return generateAuthResponse(user);
     }
@@ -145,10 +150,13 @@ public class AuthService {
         String accessToken = JwtUtils.generateAccessToken(user.getId().toString(), claims);
 
         // 生成刷新Token
-        String refreshToken = UUID.randomUUID().toString();
+        String refreshToken = JwtUtils.generateRefreshToken(user.getId().toString());
 
         // 存储Token到Redis
-        redisTemplate.opsForValue().set(TOKEN_PREFIX + accessToken, user.getId().toString(), 24, TimeUnit.HOURS);
+        String tokenKey = TOKEN_PREFIX + accessToken;
+        redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), 24, TimeUnit.HOURS);
+        redisTemplate.opsForSet().add(USER_TOKEN_INDEX_PREFIX + user.getId().toString(), accessToken);
+        redisTemplate.expire(USER_TOKEN_INDEX_PREFIX + user.getId().toString(), 24, TimeUnit.HOURS);
         redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + user.getId().toString(), refreshToken, 7, TimeUnit.DAYS);
 
         // 构建响应
@@ -246,7 +254,13 @@ public class AuthService {
         redisTemplate.delete(RESET_TOKEN_PREFIX + request.getToken());
 
         // 删除该用户的所有登录Token，强制重新登录
-        redisTemplate.delete(TOKEN_PREFIX + "*");
+        Set<String> userTokens = redisTemplate.opsForSet().members(USER_TOKEN_INDEX_PREFIX + userId);
+        if (userTokens != null && !userTokens.isEmpty()) {
+            for (String token : userTokens) {
+                redisTemplate.delete(TOKEN_PREFIX + token);
+            }
+            redisTemplate.delete(USER_TOKEN_INDEX_PREFIX + userId);
+        }
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
 
         log.info("用户 {} 密码已重置", user.getUsername());

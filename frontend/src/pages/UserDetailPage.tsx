@@ -24,6 +24,15 @@ const UserDetailPage: React.FC = () => {
     try {
       const data = await getUserDetail(userId);
       setUserInfo(data.data);
+      if (currentUser && currentUser.id !== userId) {
+        try {
+          const followData = await getFollowingList(currentUser.id, { page: 1, pageSize: 1000 });
+          const isFollowing = followData.data?.list?.some((u: FollowUser) => u.id === userId) || false;
+          setIsFollowing(isFollowing);
+        } catch {
+          setIsFollowing(false);
+        }
+      }
     } catch (error) {
       console.error('加载用户信息失败:', error);
     } finally {

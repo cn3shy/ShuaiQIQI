@@ -1,6 +1,7 @@
 package com.shuaiqi.content.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
 import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Category;
@@ -209,7 +210,7 @@ public class ContentController {
     private Long getUserIdFromRequest(HttpServletRequest request) {
         String userId = request.getHeader("X-User-Id");
         if (userId == null || userId.isEmpty()) {
-            return null; // 未登录用户
+            throw BusinessException.unauthorized("请先登录");
         }
         return Long.parseLong(userId);
     }

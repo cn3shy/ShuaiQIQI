@@ -28,14 +28,12 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/api/content/list",
             "/api/content/categories",
             "/api/content/recommend",
-            "/api/content/hot",
-            "/api/user/"
+            "/api/content/hot"
     );
 
     // 需要管理员权限的路径
     private static final List<String> ADMIN_PATHS = List.of(
-            "/api/user/list",
-            "/api/user/delete"
+            "/api/admin/"
     );
 
     @Override

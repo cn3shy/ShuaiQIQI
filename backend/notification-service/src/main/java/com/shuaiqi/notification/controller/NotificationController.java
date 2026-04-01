@@ -1,5 +1,6 @@
 package com.shuaiqi.notification.controller;
 
+import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
 import com.shuaiqi.notification.dto.NotificationListResponse;
 import com.shuaiqi.notification.service.NotificationService;
@@ -79,8 +80,8 @@ public class NotificationController {
      */
     private Long getUserIdFromRequest(HttpServletRequest request) {
         String userId = request.getHeader("X-User-Id");
-        if (userId == null) {
-            throw new RuntimeException("未授权访问");
+        if (userId == null || userId.isEmpty()) {
+            throw BusinessException.unauthorized("请先登录");
         }
         return Long.parseLong(userId);
     }

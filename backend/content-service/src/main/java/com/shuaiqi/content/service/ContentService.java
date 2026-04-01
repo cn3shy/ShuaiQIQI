@@ -87,6 +87,9 @@ public class ContentService {
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
+        // 递增浏览量
+        content.setViewCount(content.getViewCount() + 1);
+        contentMapper.updateById(content);
         return convertToResponse(content, currentUserId);
     }
 
@@ -293,6 +296,15 @@ public class ContentService {
             isFavorited = Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(favoriteKey, currentUserId.toString()));
         }
 
+        ContentResponse.AuthorInfo authorInfo = null;
+        if (content.getAuthorId() != null) {
+            authorInfo = ContentResponse.AuthorInfo.builder()
+                    .id(content.getAuthorId())
+                    .username(content.getAuthorName() != null ? content.getAuthorName() : "未知用户")
+                    .avatar(content.getAuthorAvatar())
+                    .build();
+        }
+
         return ContentResponse.builder()
                 .id(content.getId())
                 .title(content.getTitle())
@@ -305,6 +317,7 @@ public class ContentService {
                 .commentCount(content.getCommentCount())
                 .isLiked(isLiked)
                 .isFavorited(isFavorited)
+                .author(authorInfo)
                 .createTime(content.getCreateTime())
                 .updateTime(content.getUpdateTime())
                 .build();

@@ -14,11 +14,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isUnmountedRef = useRef(false);
 
   const connect = useCallback(() => {
     if (!userId) return;
 
-    // 关闭现有连接
     if (wsRef.current) {
       wsRef.current.close();
     }
@@ -30,39 +30,46 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        setIsConnected(true);
+        if (!isUnmountedRef.current) {
+          setIsConnected(true);
+        }
         console.log('WebSocket 连接成功');
       };
 
       ws.onmessage = (event) => {
         try {
           const notification: Notification = JSON.parse(event.data);
-          onNotification?.(notification);
-
-          // 显示通知提示
-          message.info(notification.title);
+          if (!isUnmountedRef.current) {
+            onNotification?.(notification);
+            message.info(notification.title);
+          }
         } catch (error) {
           console.error('解析通知消息失败:', error);
         }
       };
 
       ws.onclose = () => {
-        setIsConnected(false);
+        if (!isUnmountedRef.current) {
+          setIsConnected(false);
+        }
         console.log('WebSocket 连接关闭');
 
-        // 自动重连
         if (reconnectTimerRef.current) {
           clearTimeout(reconnectTimerRef.current);
         }
-        reconnectTimerRef.current = setTimeout(() => {
-          console.log('尝试重新连接...');
-          connect();
-        }, reconnectInterval);
+        if (!isUnmountedRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            console.log('尝试重新连接...');
+            connect();
+          }, reconnectInterval);
+        }
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket 错误:', error);
-        setIsConnected(false);
+        if (!isUnmountedRef.current) {
+          setIsConnected(false);
+        }
       };
 
       wsRef.current = ws;
@@ -80,7 +87,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       wsRef.current.close();
       wsRef.current = null;
     }
-    setIsConnected(false);
+    if (!isUnmountedRef.current) {
+      setIsConnected(false);
+    }
   }, []);
 
   const send = useCallback((data: string) => {
@@ -90,11 +99,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   }, []);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     if (userId) {
       connect();
     }
 
     return () => {
+      isUnmountedRef.current = true;
       disconnect();
     };
   }, [userId, connect, disconnect]);
