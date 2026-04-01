@@ -25,6 +25,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/api/content/list",
             "/api/content/categories",
             "/api/content/recommend",

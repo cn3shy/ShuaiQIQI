@@ -6,6 +6,7 @@ import type { User, AuthResponse } from '@types';
 interface AuthState {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
@@ -21,14 +22,17 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
       setAuth: (auth) => {
         localStorage.setItem('token', auth.token);
+        localStorage.setItem('refreshToken', auth.refreshToken);
         set({
           user: auth.user,
           token: auth.token,
+          refreshToken: auth.refreshToken,
           isAuthenticated: true,
           isLoading: false,
         });
@@ -38,9 +42,11 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         set({
           user: null,
           token: null,
+          refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
         });
@@ -53,6 +59,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
       }),
     }
   )

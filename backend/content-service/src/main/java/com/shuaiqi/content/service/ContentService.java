@@ -136,9 +136,10 @@ public class ContentService {
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-        // 递增浏览量
-        content.setViewCount(content.getViewCount() + 1);
-        contentMapper.updateById(content);
+        // 使用原子 SQL 递增浏览量
+        contentMapper.incrementViewCount(contentId);
+        // 重新查询获取最新数据（或使用 Redis 缓存）
+        content = contentMapper.selectById(contentId);
         return convertToResponse(content, currentUserId);
     }
 
@@ -211,7 +212,7 @@ public class ContentService {
     }
 
     /**
-     * 点赞内容（使用 Lua 脚本保证原子性）
+     * 点赞内容（DB 优先，Redis 作为缓存，保证数据一致性）
      */
     @Transactional
     public void likeContent(Long contentId, Long userId) {
@@ -223,22 +224,23 @@ public class ContentService {
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(LIKE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("已经点赞过了");
-        }
-
-        // 使用原子 SQL 更新点赞数
+        // 先更新 DB（原子操作），保证数据一致性
         int rows = contentMapper.incrementLikeCount(contentId);
         if (rows == 0) {
             throw BusinessException.error("点赞失败");
         }
+
+        // DB 成功后再更新 Redis，Redis 失败不影响主流程
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(LIKE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("点赞 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+        }
     }
 
     /**
-     * 取消点赞（使用 Lua 脚本保证原子性）
+     * 取消点赞（DB 优先，Redis 作为缓存）
      */
     @Transactional
     public void unlikeContent(Long contentId, Long userId) {
@@ -250,19 +252,20 @@ public class ContentService {
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLIKE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("还没有点赞");
-        }
-
-        // 使用原子 SQL 更新点赞数
+        // 先更新 DB
         contentMapper.decrementLikeCount(contentId);
+
+        // 再更新 Redis
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLIKE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("取消点赞 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+        }
     }
 
     /**
-     * 收藏内容（使用 Lua 脚本保证原子性）
+     * 收藏内容（DB 优先，Redis 作为缓存）
      */
     @Transactional
     public void favoriteContent(Long contentId, Long userId) {
@@ -274,22 +277,23 @@ public class ContentService {
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(FAVORITE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("已经收藏过了");
-        }
-
-        // 使用原子 SQL 更新收藏数
+        // 先更新 DB
         int rows = contentMapper.incrementFavoriteCount(contentId);
         if (rows == 0) {
             throw BusinessException.error("收藏失败");
         }
+
+        // 再更新 Redis
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(FAVORITE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("收藏 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+        }
     }
 
     /**
-     * 取消收藏（使用 Lua 脚本保证原子性）
+     * 取消收藏（DB 优先，Redis 作为缓存）
      */
     @Transactional
     public void unfavoriteContent(Long contentId, Long userId) {
@@ -301,15 +305,16 @@ public class ContentService {
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNFAVORITE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("还没有收藏");
-        }
-
-        // 使用原子 SQL 更新收藏数
+        // 先更新 DB
         contentMapper.decrementFavoriteCount(contentId);
+
+        // 再更新 Redis
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNFAVORITE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("取消收藏 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+        }
     }
 
     /**

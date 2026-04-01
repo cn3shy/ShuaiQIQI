@@ -25,7 +25,15 @@ public class WebSocketServer {
      */
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") String userId) {
-        SESSION_MAP.put(userId, session);
+        // 关闭旧连接，防止 session 泄漏
+        Session oldSession = SESSION_MAP.put(userId, session);
+        if (oldSession != null && oldSession.isOpen()) {
+            try {
+                oldSession.close();
+            } catch (IOException e) {
+                log.warn("关闭用户 {} 的旧 WebSocket 连接失败: {}", userId, e.getMessage());
+            }
+        }
         log.info("用户 {} WebSocket 连接成功，当前在线人数: {}", userId, SESSION_MAP.size());
     }
 

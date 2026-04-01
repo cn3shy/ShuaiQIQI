@@ -33,6 +33,17 @@ public class NotificationService {
      * 获取通知列表
      */
     public NotificationListResponse getNotificationList(Long userId, Integer page, Integer pageSize) {
+        // 分页参数校验
+        if (page == null || page < 1) {
+            page = 1;
+        }
+        if (pageSize == null || pageSize < 1) {
+            pageSize = 20;
+        }
+        if (pageSize > 100) {
+            pageSize = 100;
+        }
+
         Page<Notification> notificationPage = new Page<>(page, pageSize);
         LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Notification::getUserId, userId)

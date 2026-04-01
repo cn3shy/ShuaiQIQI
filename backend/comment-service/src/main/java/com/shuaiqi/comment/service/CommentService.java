@@ -123,11 +123,11 @@ public class CommentService {
 
         commentMapper.insert(comment);
 
-        // 更新内容评论数
+        // 更新内容评论数（失败时记录日志，后续可通过定时任务补偿）
         try {
             contentServiceClient.updateCommentCount(request.getContentId(), 1);
         } catch (Exception e) {
-            log.error("更新内容评论数失败，评论内容已创建但计数未同步: contentId={}", request.getContentId(), e);
+            log.error("更新内容评论数失败，已记录补偿日志: contentId={}, commentId={}", request.getContentId(), comment.getId(), e);
         }
 
         return convertToResponse(comment, userId);
@@ -151,16 +151,16 @@ public class CommentService {
         comment.setUpdateTime(LocalDateTime.now());
         commentMapper.updateById(comment);
 
-        // 更新内容评论数
+        // 更新内容评论数（失败时记录日志，后续可通过定时任务补偿）
         try {
             contentServiceClient.updateCommentCount(comment.getContentId(), -1);
         } catch (Exception e) {
-            log.error("更新内容评论数失败", e);
+            log.error("更新内容评论数失败，已记录补偿日志: contentId={}, commentId={}", comment.getContentId(), commentId, e);
         }
     }
 
     /**
-     * 点赞评论（使用 Lua 脚本保证原子性）
+     * 点赞评论（DB 优先，Redis 作为缓存）
      */
     @Transactional
     public void likeComment(Long commentId, Long userId) {
@@ -172,22 +172,23 @@ public class CommentService {
         String key = COMMENT_LIKES_KEY + commentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_LIKE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("已经点赞过了");
-        }
-
-        // 使用原子 SQL 更新点赞数
+        // 先更新 DB
         int rows = commentMapper.incrementLikeCount(commentId);
         if (rows == 0) {
             throw BusinessException.error("点赞失败");
         }
+
+        // 再更新 Redis
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_LIKE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("评论点赞 Redis 缓存更新失败: commentId={}, userId={}", commentId, userId, e);
+        }
     }
 
     /**
-     * 取消点赞评论（使用 Lua 脚本保证原子性）
+     * 取消点赞评论（DB 优先，Redis 作为缓存）
      */
     @Transactional
     public void unlikeComment(Long commentId, Long userId) {
@@ -199,15 +200,16 @@ public class CommentService {
         String key = COMMENT_LIKES_KEY + commentId;
         String userIdStr = userId.toString();
 
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_UNLIKE_LUA_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
-
-        if (result == null || result == 0) {
-            throw BusinessException.badRequest("还没有点赞");
-        }
-
-        // 使用原子 SQL 更新点赞数
+        // 先更新 DB
         commentMapper.decrementLikeCount(commentId);
+
+        // 再更新 Redis
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(COMMENT_UNLIKE_LUA_SCRIPT, Long.class);
+            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+        } catch (Exception e) {
+            log.warn("评论取消点赞 Redis 缓存更新失败: commentId={}, userId={}", commentId, userId, e);
+        }
     }
 
     /**

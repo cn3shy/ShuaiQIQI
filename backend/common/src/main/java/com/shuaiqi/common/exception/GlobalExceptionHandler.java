@@ -1,6 +1,7 @@
 package com.shuaiqi.common.exception;
 
 import com.shuaiqi.common.result.Result;
+import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -57,6 +58,15 @@ public class GlobalExceptionHandler {
     public Result<?> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("非法参数: {}", e.getMessage());
         return Result.error(400, e.getMessage());
+    }
+
+    /**
+     * Feign 远程调用异常
+     */
+    @ExceptionHandler(FeignException.class)
+    public Result<?> handleFeignException(FeignException e) {
+        log.error("远程服务调用失败: status={}, message={}", e.status(), e.getMessage());
+        return Result.error(503, "服务间调用失败，请稍后重试");
     }
 
     /**

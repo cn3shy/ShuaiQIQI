@@ -37,8 +37,14 @@ public interface ContentMapper extends BaseMapper<Content> {
     int decrementFavoriteCount(@Param("contentId") Long contentId);
 
     /**
-     * 原子更新评论数
+     * 原子递增评论数
      */
     @Update("UPDATE content SET comment_count = GREATEST(comment_count + #{increment}, 0), update_time = NOW() WHERE id = #{contentId} AND status = 1")
     int updateCommentCount(@Param("contentId") Long contentId, @Param("increment") Integer increment);
+
+    /**
+     * 原子递增浏览量
+     */
+    @Update("UPDATE content SET view_count = view_count + 1 WHERE id = #{contentId} AND status = 1")
+    int incrementViewCount(@Param("contentId") Long contentId);
 }

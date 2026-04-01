@@ -46,6 +46,9 @@ public class AuthService {
             throw BusinessException.badRequest("两次密码输入不一致");
         }
 
+        // 验证密码强度
+        validatePasswordStrength(request.getPassword());
+
         // 检查用户名是否已存在
         if (userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, request.getUsername())) > 0) {
@@ -220,7 +223,7 @@ public class AuthService {
         redisTemplate.opsForValue().set(RESET_TOKEN_PREFIX + resetToken, user.getId().toString(), 30, TimeUnit.MINUTES);
 
         // TODO: 发送邮件通知用户（这里只是生成令牌，实际发送邮件需要配置邮件服务）
-        log.info("用户 {} 的密码重置令牌已生成: {}", user.getUsername(), resetToken);
+        log.info("用户 {} 的密码重置令牌已生成，有效期30分钟", user.getUsername());
     }
 
     /**
@@ -264,5 +267,23 @@ public class AuthService {
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
 
         log.info("用户 {} 密码已重置", user.getUsername());
+    }
+
+    /**
+     * 验证密码强度
+     */
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.length() < 6) {
+            throw BusinessException.badRequest("密码长度不能少于6位");
+        }
+        if (password.length() > 32) {
+            throw BusinessException.badRequest("密码长度不能超过32位");
+        }
+        if (!password.matches(".*[A-Za-z].*")) {
+            throw BusinessException.badRequest("密码必须包含至少一个字母");
+        }
+        if (!password.matches(".*\\d.*")) {
+            throw BusinessException.badRequest("密码必须包含至少一个数字");
+        }
     }
 }
