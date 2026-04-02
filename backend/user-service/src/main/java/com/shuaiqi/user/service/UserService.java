@@ -7,6 +7,7 @@ import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.user.dto.*;
 import com.shuaiqi.user.entity.User;
 import com.shuaiqi.user.entity.UserFollow;
+import com.shuaiqi.user.feign.NotificationServiceClient;
 import com.shuaiqi.user.mapper.UserFollowMapper;
 import com.shuaiqi.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final UserFollowMapper userFollowMapper;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationServiceClient notificationServiceClient;
 
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator + "avatars" + File.separator;
 
@@ -239,6 +241,14 @@ public class UserService {
         userFollow.setFollowingId(followingId);
         userFollow.setCreateTime(LocalDateTime.now());
         userFollowMapper.insert(userFollow);
+
+        // 发送关注通知
+        try {
+            notificationServiceClient.createNotification("follow", "有人关注了你",
+                    "用户关注了你", followingId, followerId, "user");
+        } catch (Exception e) {
+            log.warn("发送关注通知失败: followerId={}, followingId={}", followerId, followingId, e);
+        }
     }
 
     /**

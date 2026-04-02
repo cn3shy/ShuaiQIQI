@@ -21,6 +21,7 @@
         <module>comment-service</module>
         <module>notification-service</module>
         <module>common</module>
+        <module>common-core</module>
     </modules>
 
     <properties>

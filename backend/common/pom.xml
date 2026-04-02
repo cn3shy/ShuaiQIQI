@@ -12,13 +12,20 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>common</artifactId>
+    <artifactId>common-web</artifactId>
     <packaging>jar</packaging>
 
-    <name>Common Module</name>
-    <description>公共模块 - 工具类、通用响应等</description>
+    <name>Common Web Module</name>
+    <description>公共Web模块 - 包含web相关配置，适用于servlet服务</description>
 
     <dependencies>
+        <!-- 依赖公共核心模块 -->
+        <dependency>
+            <groupId>com.shuaiqi</groupId>
+            <artifactId>common-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -35,25 +42,6 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-        </dependency>
-
-        <!-- JWT -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>0.11.5</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>0.11.5</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Swagger -->

@@ -43,10 +43,10 @@
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
-        <!-- 公共模块 -->
+        <!-- 公共核心模块 (无web依赖) -->
         <dependency>
             <groupId>com.shuaiqi</groupId>
-            <artifactId>common</artifactId>
+            <artifactId>common-core</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

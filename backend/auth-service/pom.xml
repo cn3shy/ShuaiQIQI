@@ -56,7 +56,7 @@
         <!-- 公共模块 -->
         <dependency>
             <groupId>com.shuaiqi</groupId>
-            <artifactId>common</artifactId>
+            <artifactId>common-web</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

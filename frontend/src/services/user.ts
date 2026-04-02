@@ -1,42 +1,34 @@
-// 用户服务API
 import request from './api';
 import { convertPageResponse } from '@utils/page';
 import type { User } from '@types';
 
-// 获取当前用户信息
 export const getCurrentUser = () => {
   return request.get<User>('/user/info');
 };
 
-// 更新用户信息
 export const updateUserInfo = (data: Partial<User>) => {
   return request.put<User>('/user/info', data);
 };
 
-// 上传头像
 export const uploadAvatar = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   return request.post<{ url: string }>('/user/avatar', formData);
 };
 
-// 修改密码
 export const changePassword = (oldPassword: string, newPassword: string) => {
   return request.post('/user/change-password', { oldPassword, newPassword });
 };
 
-// 获取用户详情（公开信息）
 export const getUserDetail = (userId: string) => {
   return request.get<User>(`/user/${userId}`);
 };
 
-// 获取用户列表（管理员）
 export const getUserList = async (params: { page?: number; pageSize?: number; keyword?: string }) => {
-  const res = await request.get<any>('/user/list', { params });
+  const res = await request.get<User>('/user/list', { params });
   return convertPageResponse<User>(res.data);
 };
 
-// 删除用户（管理员）
 export const deleteUser = (userId: string) => {
   return request.delete(`/user/${userId}`);
 };

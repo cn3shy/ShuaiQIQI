@@ -15,7 +15,7 @@ const ForgotPasswordPage: React.FC = () => {
   const navigate = useNavigate();
 
   // 发送重置链接
-  const handleSendResetLink = async (values: any) => {
+  const handleSendResetLink = async (values: { email: string }) => {
     setLoading(true);
     try {
       await forgotPassword(values.email);
@@ -32,7 +32,7 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   // 重置密码
-  const handleResetPassword = async (values: any) => {
+  const handleResetPassword = async (values: { resetCode: string; newPassword: string; confirmPassword: string }) => {
     if (values.newPassword !== values.confirmPassword) {
       message.error('两次密码输入不一致');
       return;

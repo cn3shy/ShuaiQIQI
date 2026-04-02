@@ -1,8 +1,7 @@
-// API基础配置
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import type { ApiResponse } from '@types';
+import { useAuthStore } from '@stores/auth';
 
-// 创建axios实例
 const apiClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
@@ -11,12 +10,9 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// 是否正在刷新token
 let isRefreshing = false;
-// 重试队列
 let requests: Array<(token: string) => void> = [];
 
-// 刷新token
 const refreshToken = async (): Promise<string | null> => {
   const refreshTokenStr = localStorage.getItem('refreshToken');
   if (!refreshTokenStr) {
@@ -38,14 +34,6 @@ const refreshToken = async (): Promise<string | null> => {
   }
 };
 
-// 清除认证信息
-const clearAuth = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('auth-storage');
-};
-
-// 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -59,7 +47,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// 响应拦截器
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     if (!response.data) {
@@ -67,14 +54,12 @@ apiClient.interceptors.response.use(
     }
     const { code, message } = response.data;
 
-    // 业务成功
     if (code === 200 || code === 0) {
       return response;
     }
 
-    // 业务失败
     if (code === 401) {
-      clearAuth();
+      useAuthStore.getState().clearAuth();
       window.location.href = '/login';
       return Promise.reject(new Error('未授权，请重新登录'));
     }
@@ -84,12 +69,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // HTTP 401 且未尝试过刷新
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        // 正在刷新，将请求加入队列
         return new Promise((resolve) => {
           requests.push((token: string) => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -103,21 +86,18 @@ apiClient.interceptors.response.use(
       const newToken = await refreshToken();
 
       if (newToken) {
-        // 刷新成功，重试队列中的请求
         requests.forEach((cb) => cb(newToken));
         requests = [];
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } else {
-        // 刷新失败，清除认证信息并跳转登录
-        clearAuth();
+        useAuthStore.getState().clearAuth();
         window.location.href = '/login';
       }
 
       isRefreshing = false;
     }
 
-    // 其他错误处理
     if (error.response) {
       switch (error.response.status) {
         case 404:
@@ -148,21 +128,20 @@ apiClient.interceptors.response.use(
   }
 );
 
-// 封装请求方法
 const request = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return apiClient.get(url, config).then((res) => res.data);
   },
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return apiClient.post(url, data, config).then((res) => res.data);
   },
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return apiClient.put(url, data, config).then((res) => res.data);
   },
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return apiClient.delete(url, config).then((res) => res.data);
   },
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return apiClient.patch(url, data, config).then((res) => res.data);
   },
 };

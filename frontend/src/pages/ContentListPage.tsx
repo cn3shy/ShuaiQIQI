@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Spin, Empty, Select, Input, Card, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import ContentCard from '@components/ContentCard';
-import { getCategoryList, getContentList, likeContent, unlikeContent, favoriteContent, unfavoriteContent } from '@services/content';
-import type { Content, Category } from '@types';
+import { getCategoryList, getContentList } from '@services/content';
+import type { Content, Category, ContentListParams } from '@types';
+import { useContentInteraction } from '@hooks/useContentInteraction';
 
-/**
- * 内容列表页
- */
 const ContentListPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [contents, setContents] = useState<Content[]>([]);
@@ -15,6 +13,7 @@ const ContentListPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>();
   const [keyword, setKeyword] = useState('');
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'hot'>('latest');
+  const { handleLike, handleFavorite } = useContentInteraction({ items: contents, setItems: setContents });
 
   const loadCategories = async () => {
     try {
@@ -28,7 +27,7 @@ const ContentListPage: React.FC = () => {
   const loadContents = async () => {
     setLoading(true);
     try {
-      const params: any = { sortBy };
+      const params: ContentListParams = { sortBy };
       if (selectedCategory) params.categoryId = selectedCategory;
       if (keyword) params.keyword = keyword;
 
@@ -38,58 +37,6 @@ const ContentListPage: React.FC = () => {
       console.error('加载内容失败:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLike = async (id: string) => {
-    try {
-      const content = contents.find(c => c.id === id);
-      if (!content) return;
-
-      if (content.isLiked) {
-        await unlikeContent(id);
-      } else {
-        await likeContent(id);
-      }
-
-      setContents(prev => prev.map(c => {
-        if (c.id === id) {
-          return {
-            ...c,
-            isLiked: !c.isLiked,
-            likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
-          };
-        }
-        return c;
-      }));
-    } catch (error) {
-      console.error('点赞操作失败:', error);
-    }
-  };
-
-  const handleFavorite = async (id: string) => {
-    try {
-      const content = contents.find(c => c.id === id);
-      if (!content) return;
-
-      if (content.isFavorited) {
-        await unfavoriteContent(id);
-      } else {
-        await favoriteContent(id);
-      }
-
-      setContents(prev => prev.map(c => {
-        if (c.id === id) {
-          return {
-            ...c,
-            isFavorited: !c.isFavorited,
-            favoriteCount: c.isFavorited ? c.favoriteCount - 1 : c.favoriteCount + 1,
-          };
-        }
-        return c;
-      }));
-    } catch (error) {
-      console.error('收藏操作失败:', error);
     }
   };
 

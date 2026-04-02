@@ -1,11 +1,12 @@
 // 通知铃铛组件
 import React, { useState, useEffect, useCallback } from 'react';
 import { Badge, Dropdown, List, Empty, Button, Space } from 'antd';
-import { BellOutlined, CommentOutlined, LikeOutlined, StarOutlined, UserAddOutlined } from '@ant-design/icons';
+import { BellOutlined } from '@ant-design/icons';
 import { getNotificationList, markAsRead } from '@services/notification';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@stores/auth';
 import { useWebSocket } from '@hooks/useWebSocket';
+import { getNotificationIcon } from '@utils/notificationIcon';
 import type { Notification } from '@types';
 
 const NotificationBell: React.FC = () => {
@@ -52,21 +53,6 @@ const NotificationBell: React.FC = () => {
     }
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'comment':
-        return <CommentOutlined style={{ color: '#1890ff' }} />;
-      case 'like':
-        return <LikeOutlined style={{ color: '#ff4d4f' }} />;
-      case 'favorite':
-        return <StarOutlined style={{ color: '#faad14' }} />;
-      case 'follow':
-        return <UserAddOutlined style={{ color: '#52c41a' }} />;
-      default:
-        return null;
-    }
-  };
-
   const dropdownContent = (
     <div style={{ width: 320, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -92,7 +78,7 @@ const NotificationBell: React.FC = () => {
               onClick={() => !item.isRead && handleMarkAsRead(item.id)}
             >
               <List.Item.Meta
-                avatar={getIcon(item.type)}
+                avatar={getNotificationIcon(item.type)}
                 title={
                   <Space>
                     <span style={{ fontSize: 13 }}>{item.title}</span>

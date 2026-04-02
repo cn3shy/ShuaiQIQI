@@ -3,8 +3,10 @@ package com.shuaiqi.content.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
+import com.shuaiqi.common.dto.UserPublicInfo;
 import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Content;
+import com.shuaiqi.content.feign.NotificationServiceClient;
 import com.shuaiqi.content.feign.UserServiceClient;
 import com.shuaiqi.content.mapper.ContentMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class ContentService {
     private final ContentMapper contentMapper;
     private final StringRedisTemplate redisTemplate;
     private final UserServiceClient userServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     private static final String CONTENT_LIKES_KEY = "content:likes:";
     private static final String CONTENT_FAVORITES_KEY = "content:favorites:";
@@ -237,6 +240,16 @@ public class ContentService {
         } catch (Exception e) {
             log.warn("点赞 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
         }
+
+        // 发送通知给内容作者
+        try {
+            if (!content.getAuthorId().equals(userId)) {
+                notificationServiceClient.createNotification("like", "有人赞了你的内容",
+                        "你的内容被点赞了", content.getAuthorId(), contentId, "content");
+            }
+        } catch (Exception e) {
+            log.warn("发送点赞通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
+        }
     }
 
     /**
@@ -289,6 +302,16 @@ public class ContentService {
             redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
         } catch (Exception e) {
             log.warn("收藏 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+        }
+
+        // 发送通知给内容作者
+        try {
+            if (!content.getAuthorId().equals(userId)) {
+                notificationServiceClient.createNotification("favorite", "有人收藏了你的内容",
+                        "你的内容被收藏了", content.getAuthorId(), contentId, "content");
+            }
+        } catch (Exception e) {
+            log.warn("发送收藏通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
         }
     }
 
@@ -394,12 +417,11 @@ public class ContentService {
             // 如果作者信息未填充，通过 Feign 获取
             if (authorName == null) {
                 try {
-                    Map<String, Object> userDetail = userServiceClient.getUserDetail(content.getAuthorId());
-                    if (userDetail != null && userDetail.containsKey("data")) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> userData = (Map<String, Object>) userDetail.get("data");
-                        authorName = (String) userData.get("username");
-                        authorAvatar = (String) userData.get("avatar");
+                    Result<UserPublicInfo> userResult = userServiceClient.getUserDetail(content.getAuthorId());
+                    if (userResult != null && userResult.getData() != null) {
+                        UserPublicInfo userInfo = userResult.getData();
+                        authorName = userInfo.getUsername();
+                        authorAvatar = userInfo.getAvatar();
                     }
                 } catch (Exception e) {
                     log.warn("获取作者信息失败: authorId={}", content.getAuthorId(), e);

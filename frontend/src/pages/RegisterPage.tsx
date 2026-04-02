@@ -14,7 +14,7 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: { username: string; email: string; phone?: string; password: string; confirmPassword: string }) => {
     setLoading(true);
     try {
       const { confirmPassword, ...registerData } = values;

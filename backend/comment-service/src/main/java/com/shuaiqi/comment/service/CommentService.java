@@ -6,6 +6,8 @@ import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.comment.dto.CommentResponse;
 import com.shuaiqi.comment.dto.CreateCommentRequest;
 import com.shuaiqi.comment.entity.Comment;
+import com.shuaiqi.comment.feign.ContentServiceClient;
+import com.shuaiqi.comment.feign.NotificationServiceClient;
 import com.shuaiqi.comment.mapper.CommentMapper;
 import com.shuaiqi.comment.feign.ContentServiceClient;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class CommentService {
     private final CommentMapper commentMapper;
     private final StringRedisTemplate redisTemplate;
     private final ContentServiceClient contentServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     private static final String COMMENT_LIKES_KEY = "comment:likes:";
 
@@ -128,6 +131,15 @@ public class CommentService {
             contentServiceClient.updateCommentCount(request.getContentId(), 1);
         } catch (Exception e) {
             log.error("更新内容评论数失败，已记录补偿日志: contentId={}, commentId={}", request.getContentId(), comment.getId(), e);
+        }
+
+        // 发送通知给内容作者
+        try {
+            notificationServiceClient.createNotification("comment", "有人评论了你的内容",
+                    request.getContent().length() > 50 ? request.getContent().substring(0, 50) + "..." : request.getContent(),
+                    userId, comment.getId(), "comment");
+        } catch (Exception e) {
+            log.warn("发送评论通知失败: contentId={}, commentId={}", request.getContentId(), comment.getId(), e);
         }
 
         return convertToResponse(comment, userId);

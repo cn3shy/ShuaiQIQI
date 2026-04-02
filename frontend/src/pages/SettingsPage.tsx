@@ -57,7 +57,7 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handlePasswordSubmit = async (values: any) => {
+  const handlePasswordSubmit = async (values: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
     if (!user) return;
     setPasswordLoading(true);
     try {

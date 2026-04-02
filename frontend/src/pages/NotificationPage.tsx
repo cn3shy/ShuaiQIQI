@@ -2,14 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { List, Card, Button, Space, Tag, Empty, Spin, message, Popconfirm, Pagination } from 'antd';
 import {
-  CommentOutlined,
-  LikeOutlined,
-  StarOutlined,
-  UserAddOutlined,
   DeleteOutlined,
   CheckOutlined,
 } from '@ant-design/icons';
 import { getNotificationList, markAsRead, markAllAsRead, deleteNotification } from '@services/notification';
+import { getNotificationIcon } from '@utils/notificationIcon';
 import type { Notification } from '@types';
 
 const NotificationPage: React.FC = () => {
@@ -69,21 +66,6 @@ const NotificationPage: React.FC = () => {
     }
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'comment':
-        return <CommentOutlined style={{ color: '#1890ff' }} />;
-      case 'like':
-        return <LikeOutlined style={{ color: '#ff4d4f' }} />;
-      case 'favorite':
-        return <StarOutlined style={{ color: '#faad14' }} />;
-      case 'follow':
-        return <UserAddOutlined style={{ color: '#52c41a' }} />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -135,7 +117,7 @@ const NotificationPage: React.FC = () => {
                     ].filter(Boolean)}
                   >
                     <List.Item.Meta
-                      avatar={getIcon(item.type)}
+                      avatar={getNotificationIcon(item.type)}
                       title={
                         <Space>
                           {item.title}

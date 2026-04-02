@@ -3,6 +3,7 @@ package com.shuaiqi.comment.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
+import com.shuaiqi.common.utils.RequestUtils;
 import com.shuaiqi.comment.dto.CommentResponse;
 import com.shuaiqi.comment.dto.CreateCommentRequest;
 import com.shuaiqi.comment.service.CommentService;
@@ -30,7 +31,7 @@ public class CommentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequestOrNull(request);
+        Long currentUserId = RequestUtils.getUserIdFromRequestOrNull(request);
         Page<CommentResponse> comments = commentService.getCommentsByContentId(contentId, page, pageSize, currentUserId);
         return Result.success(comments);
     }
@@ -42,7 +43,7 @@ public class CommentController {
     public Result<CommentResponse> createComment(
             @Validated @RequestBody CreateCommentRequest request,
             HttpServletRequest httpRequest) {
-        Long userId = getUserIdFromRequest(httpRequest);
+        Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         CommentResponse comment = commentService.createComment(request, userId);
         return Result.success("评论成功", comment);
     }
@@ -54,7 +55,7 @@ public class CommentController {
     public Result<Void> deleteComment(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         commentService.deleteComment(id, userId);
         return Result.success("删除成功", null);
     }
@@ -66,7 +67,7 @@ public class CommentController {
     public Result<Void> likeComment(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         commentService.likeComment(id, userId);
         return Result.success("点赞成功", null);
     }
@@ -78,35 +79,9 @@ public class CommentController {
     public Result<Void> unlikeComment(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         commentService.unlikeComment(id, userId);
         return Result.success("取消点赞成功", null);
-    }
-
-    /**
-     * 从请求中获取用户ID
-     */
-    private Long getUserIdFromRequest(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isEmpty()) {
-            throw BusinessException.unauthorized("请先登录");
-        }
-        return Long.parseLong(userId);
-    }
-
-    /**
-     * 从请求中获取用户ID，允许匿名访问
-     */
-    private Long getUserIdFromRequestOrNull(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isEmpty()) {
-            return null;
-        }
-        try {
-            return Long.parseLong(userId);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     /**

@@ -1,4 +1,3 @@
-// WebSocket Hook - 实时通知
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
 import type { Notification } from '@types';
@@ -33,11 +32,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       wsRef.current.close();
     }
 
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/notification/${userId}`;
 
     try {
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl, [token]);
 
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;

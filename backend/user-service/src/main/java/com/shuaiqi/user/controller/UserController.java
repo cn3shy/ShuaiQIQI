@@ -3,6 +3,7 @@ package com.shuaiqi.user.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
+import com.shuaiqi.common.utils.RequestUtils;
 import com.shuaiqi.user.dto.ChangePasswordRequest;
 import com.shuaiqi.user.dto.FollowListResponse;
 import com.shuaiqi.user.dto.UpdateUserRequest;
@@ -28,7 +29,7 @@ public class UserController {
      */
     @GetMapping("/info")
     public Result<UserInfoResponse> getCurrentUser(HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         UserInfoResponse userInfo = userService.getUserInfo(userId);
         return Result.success(userInfo);
     }
@@ -40,7 +41,7 @@ public class UserController {
     public Result<UserInfoResponse> updateUserInfo(
             @RequestBody UpdateUserRequest request,
             HttpServletRequest httpRequest) {
-        Long userId = getUserIdFromRequest(httpRequest);
+        Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         UserInfoResponse userInfo = userService.updateUserInfo(userId, request);
         return Result.success("更新成功", userInfo);
     }
@@ -52,7 +53,7 @@ public class UserController {
     public Result<Void> changePassword(
             @Validated @RequestBody ChangePasswordRequest request,
             HttpServletRequest httpRequest) {
-        Long userId = getUserIdFromRequest(httpRequest);
+        Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         userService.changePassword(userId, request);
         return Result.success("密码修改成功", null);
     }
@@ -64,7 +65,7 @@ public class UserController {
     public Result<String> uploadAvatar(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         String avatarUrl = userService.uploadAvatar(userId, file);
         return Result.success("上传成功", avatarUrl);
     }
@@ -106,7 +107,7 @@ public class UserController {
     public Result<Void> followUser(
             @PathVariable Long userId,
             HttpServletRequest request) {
-        Long followerId = getUserIdFromRequest(request);
+        Long followerId = RequestUtils.getUserIdFromRequest(request);
         userService.followUser(followerId, userId);
         return Result.success("关注成功", null);
     }
@@ -118,7 +119,7 @@ public class UserController {
     public Result<Void> unfollowUser(
             @PathVariable Long userId,
             HttpServletRequest request) {
-        Long followerId = getUserIdFromRequest(request);
+        Long followerId = RequestUtils.getUserIdFromRequest(request);
         userService.unfollowUser(followerId, userId);
         return Result.success("取消关注成功", null);
     }
@@ -154,7 +155,7 @@ public class UserController {
     public Result<Boolean> checkIsFollowing(
             @PathVariable Long userId,
             HttpServletRequest request) {
-        Long followerId = getUserIdFromRequest(request);
+        Long followerId = RequestUtils.getUserIdFromRequest(request);
         boolean isFollowing = userService.checkIsFollowing(followerId, userId);
         return Result.success(isFollowing);
     }
@@ -166,16 +167,5 @@ public class UserController {
     public Result<Long> getUserCount() {
         Long count = userService.getUserCount();
         return Result.success(count);
-    }
-
-    /**
-     * 从请求中获取用户ID
-     */
-    private Long getUserIdFromRequest(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isEmpty()) {
-            throw BusinessException.unauthorized("请先登录");
-        }
-        return Long.parseLong(userId);
     }
 }

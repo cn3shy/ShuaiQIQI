@@ -1,31 +1,49 @@
 package com.shuaiqi.notification.websocket;
 
+import com.shuaiqi.common.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import jakarta.websocket.*;
+import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.PathParam;
-import jakarta.websocket.server.ServerEndpoint;
+import jakarta.websocket.server.ServerEndpointConfig;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * WebSocket 服务端
- */
 @Slf4j
-@ServerEndpoint("/ws/notification/{userId}")
+@ServerEndpoint(value = "/ws/notification/{userId}", configurator = WebSocketServer.TokenConfigurator.class)
 public class WebSocketServer {
 
-    /**
-     * 存放每个用户对应的 WebSocket 连接
-     */
     private static final ConcurrentHashMap<String, Session> SESSION_MAP = new ConcurrentHashMap<>();
 
-    /**
-     * 连接建立成功调用的方法
-     */
+    public static class TokenConfigurator extends ServerEndpointConfig.Configurator {
+        @Override
+        public boolean modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
+            Map<String, List<String>> headers = request.getParameterMap();
+            String userId = sec.getPathParameters().get("userId");
+
+            List<String> tokenHeaders = request.getHeaders().get("Sec-WebSocket-Protocol");
+            if (tokenHeaders != null && !tokenHeaders.isEmpty()) {
+                String token = tokenHeaders.get(0);
+                if (token != null && !token.isEmpty() && JwtUtils.validateToken(token)) {
+                    String tokenUserId = JwtUtils.getUserId(token);
+                    if (!userId.equals(tokenUserId)) {
+                        log.warn("WebSocket 认证失败: token用户ID {} 与路径参数 {} 不匹配", tokenUserId, userId);
+                        return false;
+                    }
+                    return true;
+                }
+            }
+
+            log.warn("WebSocket 连接缺少有效认证: userId={}", userId);
+            return false;
+        }
+    }
+
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") String userId) {
-        // 关闭旧连接，防止 session 泄漏
         Session oldSession = SESSION_MAP.put(userId, session);
         if (oldSession != null && oldSession.isOpen()) {
             try {
@@ -37,35 +55,23 @@ public class WebSocketServer {
         log.info("用户 {} WebSocket 连接成功，当前在线人数: {}", userId, SESSION_MAP.size());
     }
 
-    /**
-     * 连接关闭调用的方法
-     */
     @OnClose
     public void onClose(@PathParam("userId") String userId) {
         SESSION_MAP.remove(userId);
         log.info("用户 {} WebSocket 连接关闭，当前在线人数: {}", userId, SESSION_MAP.size());
     }
 
-    /**
-     * 收到客户端消息后调用的方法
-     */
     @OnMessage
     public void onMessage(String message, @PathParam("userId") String userId) {
         log.info("收到用户 {} 的消息: {}", userId, message);
     }
 
-    /**
-     * 发生错误时调用
-     */
     @OnError
     public void onError(Session session, Throwable error, @PathParam("userId") String userId) {
         log.error("用户 {} WebSocket 发生错误: {}", userId, error.getMessage());
         SESSION_MAP.remove(userId);
     }
 
-    /**
-     * 发送消息给指定用户
-     */
     public static void sendMessage(String userId, String message) {
         Session session = SESSION_MAP.get(userId);
         if (session != null && session.isOpen()) {
@@ -77,9 +83,6 @@ public class WebSocketServer {
         }
     }
 
-    /**
-     * 群发消息
-     */
     public static void broadcast(String message) {
         SESSION_MAP.forEach((userId, session) -> {
             if (session.isOpen()) {
@@ -92,16 +95,10 @@ public class WebSocketServer {
         });
     }
 
-    /**
-     * 获取在线用户数
-     */
     public static int getOnlineCount() {
         return SESSION_MAP.size();
     }
 
-    /**
-     * 检查用户是否在线
-     */
     public static boolean isOnline(String userId) {
         Session session = SESSION_MAP.get(userId);
         return session != null && session.isOpen();

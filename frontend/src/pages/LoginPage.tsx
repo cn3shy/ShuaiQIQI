@@ -14,7 +14,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
       const response = await login(values);

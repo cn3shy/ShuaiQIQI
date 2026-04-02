@@ -3,6 +3,7 @@ package com.shuaiqi.content.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.result.Result;
+import com.shuaiqi.common.utils.RequestUtils;
 import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Category;
 import com.shuaiqi.content.service.CategoryService;
@@ -36,7 +37,7 @@ public class ContentController {
     public Result<Page<ContentResponse>> getContentList(
             @ModelAttribute ContentListParams params,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequestOrNull(request);
+        Long currentUserId = RequestUtils.getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getContentList(params, currentUserId);
         return Result.success(contentList);
     }
@@ -49,7 +50,7 @@ public class ContentController {
     public Result<Page<ContentResponse>> getMyContentList(
             @ModelAttribute ContentListParams params,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         params.setAuthorId(userId);
         Page<ContentResponse> contentList = contentService.getContentList(params, userId);
         return Result.success(contentList);
@@ -63,7 +64,7 @@ public class ContentController {
     public Result<ContentResponse> getContentDetail(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequestOrNull(request);
+        Long currentUserId = RequestUtils.getUserIdFromRequestOrNull(request);
         ContentResponse content = contentService.getContentDetail(id, currentUserId);
         return Result.success(content);
     }
@@ -76,7 +77,7 @@ public class ContentController {
     public Result<ContentResponse> createContent(
             @Validated @RequestBody CreateContentRequest request,
             HttpServletRequest httpRequest) {
-        Long userId = getUserIdFromRequest(httpRequest);
+        Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         ContentResponse content = contentService.createContent(request, userId);
         return Result.success("创建成功", content);
     }
@@ -90,7 +91,7 @@ public class ContentController {
             @PathVariable Long id,
             @Validated @RequestBody CreateContentRequest request,
             HttpServletRequest httpRequest) {
-        Long userId = getUserIdFromRequest(httpRequest);
+        Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         ContentResponse content = contentService.updateContent(id, request, userId);
         return Result.success("更新成功", content);
     }
@@ -103,7 +104,7 @@ public class ContentController {
     public Result<Void> deleteContent(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         contentService.deleteContent(id, userId);
         return Result.success("删除成功", null);
     }
@@ -116,7 +117,7 @@ public class ContentController {
     public Result<Void> likeContent(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         contentService.likeContent(id, userId);
         return Result.success("点赞成功", null);
     }
@@ -129,7 +130,7 @@ public class ContentController {
     public Result<Void> unlikeContent(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         contentService.unlikeContent(id, userId);
         return Result.success("取消点赞成功", null);
     }
@@ -142,7 +143,7 @@ public class ContentController {
     public Result<Void> favoriteContent(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         contentService.favoriteContent(id, userId);
         return Result.success("收藏成功", null);
     }
@@ -155,7 +156,7 @@ public class ContentController {
     public Result<Void> unfavoriteContent(
             @PathVariable Long id,
             HttpServletRequest request) {
-        Long userId = getUserIdFromRequest(request);
+        Long userId = RequestUtils.getUserIdFromRequest(request);
         contentService.unfavoriteContent(id, userId);
         return Result.success("取消收藏成功", null);
     }
@@ -188,7 +189,7 @@ public class ContentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequestOrNull(request);
+        Long currentUserId = RequestUtils.getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getRecommendContent(page, pageSize, currentUserId);
         return Result.success(contentList);
     }
@@ -202,7 +203,7 @@ public class ContentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             HttpServletRequest request) {
-        Long currentUserId = getUserIdFromRequestOrNull(request);
+        Long currentUserId = RequestUtils.getUserIdFromRequestOrNull(request);
         Page<ContentResponse> contentList = contentService.getHotContent(page, pageSize, currentUserId);
         return Result.success(contentList);
     }
@@ -234,31 +235,5 @@ public class ContentController {
     public Result<Long> getTotalLikes() {
         Long count = contentService.getTotalLikes();
         return Result.success(count);
-    }
-
-    /**
-     * 从请求中获取用户ID
-     */
-    private Long getUserIdFromRequest(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isEmpty()) {
-            throw BusinessException.unauthorized("请先登录");
-        }
-        return Long.parseLong(userId);
-    }
-
-    /**
-     * 从请求中获取用户ID，允许匿名访问
-     */
-    private Long getUserIdFromRequestOrNull(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isEmpty()) {
-            return null;
-        }
-        try {
-            return Long.parseLong(userId);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }
