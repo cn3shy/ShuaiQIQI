@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Space, Input, message, Popconfirm, Avatar } from 'antd';
 import { SearchOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { getUserList, deleteUser } from '@services/user';
-import type { User } from '@types';
+import type { User, PageParams } from '@types';
 
 const AdminUserPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ const AdminUserPage: React.FC = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const params: any = { page: 1, pageSize: 100 };
+      const params: PageParams & { keyword?: string } = { page: 1, pageSize: 100 };
       if (keyword) params.keyword = keyword;
       const data = await getUserList(params);
       setUsers(data.data?.list || []);
@@ -33,7 +33,7 @@ const AdminUserPage: React.FC = () => {
       await deleteUser(id);
       message.success('删除成功');
       loadUsers();
-    } catch (error) {
+    } catch {
       message.error('删除失败');
     }
   };
@@ -74,7 +74,7 @@ const AdminUserPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: User) => (
+      render: (_: unknown, record: User) => (
         <Space>
           <Popconfirm
             title="确定删除此用户？"

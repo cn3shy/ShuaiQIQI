@@ -8,12 +8,12 @@ import type {
 } from '@types';
 
 export const getContentList = async (params: ContentListParams = {}) => {
-  const res = await request.get<Content>('/content/list', { params });
+  const res = await request.get<Content[]>('/content/list', { params });
   return convertPageResponse<Content>(res.data);
 };
 
 export const getMyContentList = async (params: ContentListParams = {}) => {
-  const res = await request.get<Content>('/content/my', { params });
+  const res = await request.get<Content[]>('/content/my', { params });
   return convertPageResponse<Content>(res.data);
 };
 
@@ -58,11 +58,11 @@ export const getCategoryDetail = (id: string) => {
 };
 
 export const getRecommendContent = async (params: PageParams = {}) => {
-  const res = await request.get<Content>('/content/recommend', { params });
+  const res = await request.get<Content[]>('/content/recommend', { params });
   return convertPageResponse<Content>(res.data);
 };
 
 export const getHotContent = async (params: PageParams = {}) => {
-  const res = await request.get<Content>('/content/hot', { params });
+  const res = await request.get<Content[]>('/content/hot', { params });
   return convertPageResponse<Content>(res.data);
 };

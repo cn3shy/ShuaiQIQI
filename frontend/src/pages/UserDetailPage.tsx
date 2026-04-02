@@ -82,7 +82,7 @@ const UserDetailPage: React.FC = () => {
         setIsFollowing(true);
         message.success('关注成功');
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败');
     }
   };

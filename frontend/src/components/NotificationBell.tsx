@@ -19,26 +19,28 @@ const NotificationBell: React.FC = () => {
     setUnreadCount((prev) => prev + 1);
   }, []);
 
-  const { isConnected } = useWebSocket({
+  useWebSocket({
     userId: user?.id,
     onNotification: handleNewNotification,
   });
 
-  const loadNotifications = async () => {
-    try {
-      const data = await getNotificationList({ page: 1, pageSize: 5 });
-      setNotifications(data.data?.list || []);
-      setUnreadCount(data.data?.unreadCount || 0);
-    } catch (error) {
-      console.error('加载通知失败:', error);
-    }
-  };
+  useWebSocket({
+    userId: user?.id,
+    onNotification: handleNewNotification,
+  });
 
   useEffect(() => {
-    loadNotifications();
-    // 每30秒刷新一次
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    let mounted = true;
+    const fetchInitial = async () => {
+      const data = await getNotificationList({ page: 1, pageSize: 5 });
+      if (mounted) {
+        setNotifications(data.data?.list || []);
+        setUnreadCount(data.data?.unreadCount || 0);
+      }
+    };
+    void fetchInitial();
+    const interval = setInterval(fetchInitial, 30000);
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
   const handleMarkAsRead = async (id: string) => {

@@ -24,8 +24,9 @@ const ForgotPasswordPage: React.FC = () => {
       // 模拟获取重置令牌（实际应该从邮件中获取）
       // 这里为了演示，直接生成一个模拟令牌
       setResetToken('demo-token-' + Date.now());
-    } catch (error: any) {
-      message.error(error.message || '发送失败，请稍后重试');
+    } catch (error) {
+      const err = error as Error;
+      message.error(err.message || '发送失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -43,8 +44,9 @@ const ForgotPasswordPage: React.FC = () => {
       await resetPassword(resetToken, values.newPassword);
       message.success('密码重置成功，请重新登录');
       navigate('/login');
-    } catch (error: any) {
-      message.error(error.message || '重置失败，请稍后重试');
+    } catch (error) {
+      const err = error as Error;
+      message.error(err.message || '重置失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ const ForgotPasswordPage: React.FC = () => {
             name="newPassword"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码长度至少6位' }
+              { min: 8, message: '密码长度至少8位' }
             ]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="新密码" size="large" />

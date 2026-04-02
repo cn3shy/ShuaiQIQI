@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'react-refresh/only-export-components': ['warn', { allowExportNames: ['router'] }],
+      'react-hooks/exhaustive-deps': 'warn',
+    },
   },
 ])

@@ -1,6 +1,6 @@
 // 关注服务 API
 import request from './api';
-import type { FollowUser, FollowListResponse } from '@types';
+import type { FollowListResponse } from '@types';
 
 // 关注用户
 export const followUser = (userId: string) => {

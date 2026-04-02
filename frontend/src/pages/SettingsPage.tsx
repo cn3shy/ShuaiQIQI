@@ -25,13 +25,13 @@ const SettingsPage: React.FC = () => {
       });
       message.success('头像上传成功');
       return { url: avatarUrl };
-    } catch (error) {
+    } catch {
       message.error('上传失败');
       return { url: '' };
     }
   };
 
-  const handleAvatarCustomRequest = async ({ file, onSuccess, onError }: any) => {
+  const handleAvatarCustomRequest = async ({ file, onSuccess, onError }: { file: File; onSuccess?: (response: unknown) => void; onError?: (error: Error) => void }) => {
     try {
       await handleAvatarUpload(file as File);
       onSuccess?.('ok');
@@ -50,8 +50,9 @@ const SettingsPage: React.FC = () => {
         ...values,
       });
       message.success('信息更新成功');
-    } catch (error: any) {
-      message.error(error.message || '更新失败');
+    } catch (error) {
+      const err = error as Error;
+      message.error(err.message || '更新失败');
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,9 @@ const SettingsPage: React.FC = () => {
       message.success('密码修改成功，请重新登录');
       localStorage.removeItem('token');
       window.location.href = '/login';
-    } catch (error: any) {
-      message.error(error.message || '修改失败');
+    } catch (error) {
+      const err = error as Error;
+      message.error(err.message || '修改失败');
     } finally {
       setPasswordLoading(false);
     }
@@ -155,7 +157,7 @@ const SettingsPage: React.FC = () => {
             name="newPassword"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码长度至少6位' },
+              { min: 8, message: '密码长度至少8位' },
             ]}
           >
             <Input.Password />

@@ -12,30 +12,36 @@ let isRefreshing = false;
 let requests: Array<(token: string) => void> = [];
 
 const refreshToken = async (): Promise<string | null> => {
-  const refreshTokenStr = localStorage.getItem('refreshToken');
-  if (!refreshTokenStr) {
+  const { refreshToken: refreshTkn } = useAuthStore.getState();
+  if (!refreshTkn) {
     return null;
   }
   try {
-    const response = await apiClient.post('/auth/refresh', { refreshToken: refreshTokenStr });
+    const response = await apiClient.post('/auth/refresh', { refreshToken: refreshTkn });
     if (response.data?.code === 200) {
       const { token, refreshToken: newRefreshToken } = response.data.data;
-      localStorage.setItem('token', token);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
+      useAuthStore.getState().setAuth({
+        token,
+        refreshToken: newRefreshToken,
+        user: useAuthStore.getState().user!,
+      });
       return token;
     }
     return null;
   } catch {
-    localStorage.removeItem('refreshToken');
+    useAuthStore.getState().clearAuth();
     return null;
   }
 };
 
+const handleUnauthorized = () => {
+  useAuthStore.getState().clearAuth();
+  window.location.href = '/login';
+};
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = useAuthStore.getState().token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -50,8 +56,7 @@ apiClient.interceptors.response.use(
     const { code, message } = response.data;
     if (code === 200 || code === 0) return response;
     if (code === 401) {
-      useAuthStore.getState().clearAuth();
-      window.location.href = '/login';
+      handleUnauthorized();
       return Promise.reject(new Error('未授权，请重新登录'));
     }
     return Promise.reject(new Error(message || '请求失败'));
@@ -77,8 +82,8 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } else {
-        useAuthStore.getState().clearAuth();
-        window.location.href = '/login';
+        handleUnauthorized();
+        return Promise.reject(error);
       }
     }
     if (error.response) {

@@ -1,21 +1,20 @@
 // 后台内容管理页面
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Space, Tag, Input, Select, message, Popconfirm } from 'antd';
+import { Table, Card, Button, Space, Tag, Input, message, Popconfirm } from 'antd';
 import { SearchOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { getContentList, deleteContent } from '@services/content';
 import { Link } from 'react-router-dom';
-import type { Content } from '@types';
+import type { Content, ContentListParams } from '@types';
 
 const AdminContentPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [contents, setContents] = useState<Content[]>([]);
   const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState<number>();
 
   const loadContents = async () => {
     setLoading(true);
     try {
-      const params: any = { page: 1, pageSize: 100 };
+      const params: ContentListParams = { page: 1, pageSize: 100 };
       if (keyword) params.keyword = keyword;
       const data = await getContentList(params);
       setContents(data.data?.list || []);
@@ -35,7 +34,7 @@ const AdminContentPage: React.FC = () => {
       await deleteContent(id);
       message.success('删除成功');
       loadContents();
-    } catch (error) {
+    } catch {
       message.error('删除失败');
     }
   };
@@ -81,7 +80,7 @@ const AdminContentPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Content) => (
+      render: (_: unknown, record: Content) => (
         <Space>
           <Link to={`/content/${record.id}`}>
             <Button type="link" icon={<EyeOutlined />}>查看</Button>

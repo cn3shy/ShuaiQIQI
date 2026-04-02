@@ -17,13 +17,15 @@ const RegisterPage: React.FC = () => {
   const handleFinish = async (values: { username: string; email: string; phone?: string; password: string; confirmPassword: string }) => {
     setLoading(true);
     try {
-      const { confirmPassword, ...registerData } = values;
+      const { confirmPassword: _confirmPassword, ...registerData } = values;
+      void _confirmPassword;
       const response = await register(registerData);
       setAuth(response.data);
       message.success('注册成功，欢迎加入帅气气！');
       navigate('/');
-    } catch (error: any) {
-      message.error(error.message || '注册失败，请稍后重试');
+    } catch (error) {
+      const err = error as Error;
+      message.error(err.message || '注册失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ const RegisterPage: React.FC = () => {
             name="password"
             rules={[
               { required: true, message: '请输入密码' },
-              { min: 6, message: '密码长度至少6位' },
+              { min: 8, message: '密码长度至少8位' },
             ]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" />

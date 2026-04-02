@@ -7,7 +7,7 @@ import type {
 } from '@types';
 
 export const getCommentList = async (contentId: string, params: PageParams = {}) => {
-  const res = await request.get<Comment>(`/comment/content/${contentId}`, { params });
+  const res = await request.get<Comment[]>(`/comment/content/${contentId}`, { params });
   return convertPageResponse<Comment>(res.data);
 };
 

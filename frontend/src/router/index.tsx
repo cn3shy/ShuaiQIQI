@@ -41,7 +41,11 @@ const ResponsiveLayout = () => {
 
 // 路由守卫组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly }) => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
+
+  if (isLoading) {
+    return <div style={{ padding: 24, textAlign: 'center' }}>加载中...</div>;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

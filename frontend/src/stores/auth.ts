@@ -1,4 +1,3 @@
-// 认证状态管理 - 使用Zustand
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, AuthResponse } from '@types';
@@ -10,7 +9,6 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  // Actions
   setAuth: (auth: AuthResponse) => void;
   setUser: (user: User | null) => void;
   clearAuth: () => void;
@@ -24,11 +22,9 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       refreshToken: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
 
       setAuth: (auth) => {
-        localStorage.setItem('token', auth.token);
-        localStorage.setItem('refreshToken', auth.refreshToken);
         set({
           user: auth.user,
           token: auth.token,
@@ -38,11 +34,9 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      setUser: (user) => set((state) => ({ user, isAuthenticated: user !== null })),
+      setUser: (user) => set({ user, isAuthenticated: user !== null }),
 
       clearAuth: () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
         set({
           user: null,
           token: null,

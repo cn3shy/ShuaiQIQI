@@ -5,7 +5,6 @@ import type { Notification } from '@types';
 interface UseWebSocketOptions {
   userId?: string;
   onNotification?: (notification: Notification) => void;
-  reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
 
@@ -14,12 +13,18 @@ const BASE_RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_INTERVAL = 60000;
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
-  const { userId, onNotification, reconnectInterval = BASE_RECONNECT_INTERVAL, maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS } = options;
+  const { userId, onNotification, maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUnmountedRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
+  const onNotificationRef = useRef(onNotification);
+  const connectRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    onNotificationRef.current = onNotification;
+  }, [onNotification]);
 
   const getReconnectDelay = useCallback((attempt: number) => {
     return Math.min(BASE_RECONNECT_INTERVAL * Math.pow(2, attempt), MAX_RECONNECT_INTERVAL);
@@ -44,11 +49,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         try {
           const notification: Notification = JSON.parse(event.data);
           if (!isUnmountedRef.current) {
-            onNotification?.(notification);
+            onNotificationRef.current?.(notification);
             message.info(notification.title);
           }
-        } catch (error) {
-          console.error('解析通知消息失败:', error);
+        } catch {
+          console.error('解析通知消息失败');
         }
       };
       ws.onclose = () => {
@@ -58,15 +63,21 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         if (attempts < maxReconnectAttempts && !isUnmountedRef.current) {
           reconnectAttemptsRef.current = attempts + 1;
           const delay = getReconnectDelay(attempts);
-          reconnectTimerRef.current = setTimeout(() => connect(), delay);
+          reconnectTimerRef.current = setTimeout(() => {
+            if (!isUnmountedRef.current) connectRef.current();
+          }, delay);
         }
       };
       ws.onerror = () => { if (!isUnmountedRef.current) setIsConnected(false); };
       wsRef.current = ws;
-    } catch (error) {
-      console.error('WebSocket 连接失败:', error);
+    } catch {
+      console.error('WebSocket 连接失败');
     }
-  }, [userId, onNotification, maxReconnectAttempts, getReconnectDelay]);
+  }, [userId, maxReconnectAttempts, getReconnectDelay]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
