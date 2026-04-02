@@ -12,15 +12,12 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
-/**
- * JWT认证过滤器
- */
 @Slf4j
 @Component
 public class AuthFilter implements GlobalFilter, Ordered {
 
-    // 不需要认证的路径
     private static final List<String> WHITE_LIST = List.of(
             "/api/auth/login",
             "/api/auth/register",
@@ -33,39 +30,41 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/api/content/hot"
     );
 
-    // 需要管理员权限的路径
     private static final List<String> ADMIN_PATHS = List.of(
-            "/api/admin/"
+            "/api/admin/",
+            "/api/user/list",
+            "/api/user/count",
+            "/api/content/count",
+            "/api/content/likes/count",
+            "/api/comment/count"
     );
+
+    private static final Pattern CONTENT_DETAIL_PATTERN = Pattern.compile("^/api/content/\\d+$");
+    private static final Pattern COMMENT_CONTENT_PATTERN = Pattern.compile("^/api/comment/content/\\d+$");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 白名单路径直接放行
         if (isWhiteListed(path)) {
             return chain.filter(exchange);
         }
 
-        // 获取Token
         String token = extractToken(request);
         if (token == null || !JwtUtils.validateToken(token)) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        // 获取用户ID和角色
         String userId = JwtUtils.getUserId(token);
         String role = JwtUtils.getRole(token);
 
-        // 检查管理员权限
         if (isAdminPath(path) && !"admin".equals(role)) {
             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
             return exchange.getResponse().setComplete();
         }
 
-        // 将用户信息添加到请求头
         ServerHttpRequest modifiedRequest = request.mutate()
                 .header("X-User-Id", userId)
                 .header("X-User-Role", role != null ? role : "user")
@@ -79,27 +78,17 @@ public class AuthFilter implements GlobalFilter, Ordered {
         return -100;
     }
 
-    /**
-     * 检查路径是否在白名单中
-     */
     private boolean isWhiteListed(String path) {
-        // 获取内容详情允许匿名访问
-        if (path.matches("/api/content/\\d+") || path.matches("/api/comment/content/\\d+")) {
+        if (CONTENT_DETAIL_PATTERN.matcher(path).matches() || COMMENT_CONTENT_PATTERN.matcher(path).matches()) {
             return true;
         }
         return WHITE_LIST.stream().anyMatch(path::startsWith);
     }
 
-    /**
-     * 检查路径是否需要管理员权限
-     */
     private boolean isAdminPath(String path) {
         return ADMIN_PATHS.stream().anyMatch(path::startsWith);
     }
 
-    /**
-     * 从请求头中提取Token
-     */
     private String extractToken(ServerHttpRequest request) {
         String bearerToken = request.getHeaders().getFirst("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {

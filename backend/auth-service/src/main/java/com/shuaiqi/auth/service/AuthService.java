@@ -236,11 +236,12 @@ public class AuthService {
             throw BusinessException.badRequest("两次密码输入不一致");
         }
 
-        // 从Redis获取用户ID
+        // 从Redis获取用户ID并立即删除令牌（防止重放）
         String userId = redisTemplate.opsForValue().get(RESET_TOKEN_PREFIX + request.getToken());
         if (userId == null) {
             throw BusinessException.badRequest("重置令牌无效或已过期");
         }
+        redisTemplate.delete(RESET_TOKEN_PREFIX + request.getToken());
 
         // 查询用户
         User user = userMapper.selectById(userId);
@@ -252,9 +253,6 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
-
-        // 删除重置令牌
-        redisTemplate.delete(RESET_TOKEN_PREFIX + request.getToken());
 
         // 删除该用户的所有登录Token，强制重新登录
         Set<String> userTokens = redisTemplate.opsForSet().members(USER_TOKEN_INDEX_PREFIX + userId);

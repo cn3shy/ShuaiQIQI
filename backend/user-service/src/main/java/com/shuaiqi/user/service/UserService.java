@@ -12,6 +12,7 @@ import com.shuaiqi.user.mapper.UserFollowMapper;
 import com.shuaiqi.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +38,11 @@ public class UserService {
     private final UserFollowMapper userFollowMapper;
     private final PasswordEncoder passwordEncoder;
     private final NotificationServiceClient notificationServiceClient;
+    private final StringRedisTemplate redisTemplate;
 
+    private static final String TOKEN_PREFIX = "user:token:";
+    private static final String USER_TOKEN_INDEX_PREFIX = "user:token:index:";
+    private static final String REFRESH_TOKEN_PREFIX = "user:refresh:";
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator + "avatars" + File.separator;
 
     /**
@@ -203,10 +208,20 @@ public class UserService {
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
-        // 软删除
         user.setStatus(0);
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
+
+        String userIdStr = userId.toString();
+        Set<String> userTokens = redisTemplate.opsForSet().members(USER_TOKEN_INDEX_PREFIX + userIdStr);
+        if (userTokens != null && !userTokens.isEmpty()) {
+            for (String token : userTokens) {
+                redisTemplate.delete(TOKEN_PREFIX + token);
+            }
+            redisTemplate.delete(USER_TOKEN_INDEX_PREFIX + userIdStr);
+        }
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userIdStr);
+        log.info("用户 {} 已注销，所有登录凭证已失效", userId);
     }
 
     /**

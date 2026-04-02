@@ -70,6 +70,15 @@ public class ContentController {
     }
 
     /**
+     * 获取内容简要信息（服务间调用）
+     */
+    @GetMapping("/{id}/brief")
+    public Result<ContentBriefInfo> getContentBrief(@PathVariable Long id) {
+        ContentBriefInfo brief = contentService.getContentBrief(id);
+        return Result.success(brief);
+    }
+
+    /**
      * 创建内容
      */
     @Operation(summary = "创建内容", description = "创建新的内容")

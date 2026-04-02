@@ -14,11 +14,24 @@ import java.util.Map;
 @Slf4j
 public class JwtUtils {
 
-    private static final String SECRET_KEY = System.getenv().getOrDefault("JWT_SECRET_KEY", "shuaiqi-qi-secret-key-2024-01-01-must-be-at-least-256-bits-long-for-hs256");
+    private static final String SECRET_KEY;
+    private static final SecretKey KEY;
+
+    static {
+        String envKey = System.getenv("JWT_SECRET_KEY");
+        if (envKey == null || envKey.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET_KEY 环境变量未配置，请在启动前设置该环境变量");
+        }
+        if (envKey.length() < 32) {
+            throw new IllegalStateException("JWT_SECRET_KEY 长度不能少于32字符");
+        }
+        SECRET_KEY = envKey;
+        KEY = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        log.info("JWT密钥已初始化，长度: {}", SECRET_KEY.length());
+    }
+
     private static final long ACCESS_TOKEN_EXPIRE = 3600 * 1000L * 24;
     private static final long REFRESH_TOKEN_EXPIRE = 3600 * 1000L * 24 * 7;
-
-    private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
 
     public static String generateAccessToken(String userId, Map<String, Object> claims) {
         return Jwts.builder()

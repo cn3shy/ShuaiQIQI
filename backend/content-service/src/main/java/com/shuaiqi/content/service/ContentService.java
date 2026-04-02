@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shuaiqi.common.exception.BusinessException;
 import com.shuaiqi.common.dto.UserPublicInfo;
+import com.shuaiqi.common.result.Result;
 import com.shuaiqi.content.dto.*;
 import com.shuaiqi.content.entity.Content;
 import com.shuaiqi.content.feign.NotificationServiceClient;
@@ -17,13 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
-/**
- * 内容服务
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,66 +34,34 @@ public class ContentService {
     private static final String CONTENT_LIKES_KEY = "content:likes:";
     private static final String CONTENT_FAVORITES_KEY = "content:favorites:";
 
-    /**
-     * 点赞 Lua 脚本：原子性检查并添加用户到集合，返回 1=成功 0=已点赞
-     */
     private static final String LIKE_LUA_SCRIPT =
-            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then " +
-            "    return 0 " +
-            "end " +
-            "redis.call('SADD', KEYS[1], ARGV[1]) " +
-            "return 1";
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 0 end " +
+            "redis.call('SADD', KEYS[1], ARGV[1]) return 1";
 
-    /**
-     * 取消点赞 Lua 脚本：原子性检查并移除用户，返回 1=成功 0=未点赞
-     */
     private static final String UNLIKE_LUA_SCRIPT =
-            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then " +
-            "    return 0 " +
-            "end " +
-            "redis.call('SREM', KEYS[1], ARGV[1]) " +
-            "return 1";
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then return 0 end " +
+            "redis.call('SREM', KEYS[1], ARGV[1]) return 1";
 
-    /**
-     * 收藏 Lua 脚本：原子性检查并添加用户到集合，返回 1=成功 0=已收藏
-     */
     private static final String FAVORITE_LUA_SCRIPT =
-            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then " +
-            "    return 0 " +
-            "end " +
-            "redis.call('SADD', KEYS[1], ARGV[1]) " +
-            "return 1";
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 0 end " +
+            "redis.call('SADD', KEYS[1], ARGV[1]) return 1";
 
-    /**
-     * 取消收藏 Lua 脚本：原子性检查并移除用户，返回 1=成功 0=未收藏
-     */
     private static final String UNFAVORITE_LUA_SCRIPT =
-            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then " +
-            "    return 0 " +
-            "end " +
-            "redis.call('SREM', KEYS[1], ARGV[1]) " +
-            "return 1";
+            "if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 0 then return 0 end " +
+            "redis.call('SREM', KEYS[1], ARGV[1]) return 1";
 
-    /**
-     * 获取内容列表
-     */
     public Page<ContentResponse> getContentList(ContentListParams params, Long currentUserId) {
         Page<Content> page = new Page<>(params.getPage(), params.getPageSize());
         LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
-
-        // 筛选条件
         wrapper.eq(Content::getStatus, 1);
 
         if (params.getCategoryId() != null) {
             wrapper.eq(Content::getCategoryId, params.getCategoryId());
         }
-
         if (params.getAuthorId() != null) {
             wrapper.eq(Content::getAuthorId, params.getAuthorId());
         }
-
         if (params.getKeyword() != null && !params.getKeyword().isEmpty()) {
-            // 支持标题和内容的模糊搜索
             wrapper.and(w -> w
                     .like(Content::getTitle, params.getKeyword())
                     .or()
@@ -104,51 +69,84 @@ public class ContentService {
             );
         }
 
-        // 排序
         switch (params.getSortBy()) {
-            case "popular":
-                wrapper.orderByDesc(Content::getLikeCount);
-                break;
-            case "hot":
-                wrapper.orderByDesc(Content::getViewCount);
-                break;
-            default:
-                wrapper.orderByDesc(Content::getCreateTime);
+            case "popular": wrapper.orderByDesc(Content::getLikeCount); break;
+            case "hot": wrapper.orderByDesc(Content::getViewCount); break;
+            default: wrapper.orderByDesc(Content::getCreateTime);
         }
 
         Page<Content> contentPage = contentMapper.selectPage(page, wrapper);
+        List<Content> records = contentPage.getRecords();
+        if (records.isEmpty()) {
+            Page<ContentResponse> emptyPage = new Page<>();
+            emptyPage.setCurrent(contentPage.getCurrent());
+            emptyPage.setSize(contentPage.getSize());
+            emptyPage.setTotal(contentPage.getTotal());
+            emptyPage.setRecords(Collections.emptyList());
+            return emptyPage;
+        }
 
-        // 转换为响应对象
+        // 批量查询 Redis 点赞/收藏状态，解决 N+1 问题
+        Set<String> likedContentIds = new HashSet<>();
+        Set<String> favoritedContentIds = new HashSet<>();
+        if (currentUserId != null) {
+            try {
+                List<String> likeKeys = records.stream().map(c -> CONTENT_LIKES_KEY + c.getId()).collect(Collectors.toList());
+                List<String> favKeys = records.stream().map(c -> CONTENT_FAVORITES_KEY + c.getId()).collect(Collectors.toList());
+                String userIdStr = currentUserId.toString();
+                for (int i = 0; i < records.size(); i++) {
+                    if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(likeKeys.get(i), userIdStr))) {
+                        likedContentIds.add(records.get(i).getId().toString());
+                    }
+                    if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(favKeys.get(i), userIdStr))) {
+                        favoritedContentIds.add(records.get(i).getId().toString());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("批量查询点赞/收藏状态失败", e);
+            }
+        }
+
+        // 批量获取作者信息
+        Set<Long> authorIds = records.stream().map(Content::getAuthorId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, UserPublicInfo> authorMap = batchGetUserInfo(new ArrayList<>(authorIds));
+
+        final Set<String> finalLikedIds = likedContentIds;
+        final Set<String> finalFavIds = favoritedContentIds;
+        final Map<Long, UserPublicInfo> finalAuthorMap = authorMap;
+
         Page<ContentResponse> responsePage = new Page<>();
         responsePage.setCurrent(contentPage.getCurrent());
         responsePage.setSize(contentPage.getSize());
         responsePage.setTotal(contentPage.getTotal());
-
-        responsePage.setRecords(contentPage.getRecords().stream()
-                .map(content -> convertToResponse(content, currentUserId))
+        responsePage.setRecords(records.stream()
+                .map(c -> convertToResponse(c, currentUserId, finalLikedIds, finalFavIds, finalAuthorMap))
                 .toList());
-
         return responsePage;
     }
 
-    /**
-     * 获取内容详情
-     */
     public ContentResponse getContentDetail(Long contentId, Long currentUserId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-        // 使用原子 SQL 递增浏览量
         contentMapper.incrementViewCount(contentId);
-        // 重新查询获取最新数据（或使用 Redis 缓存）
         content = contentMapper.selectById(contentId);
         return convertToResponse(content, currentUserId);
     }
 
-    /**
-     * 创建内容
-     */
+    public ContentBriefInfo getContentBrief(Long contentId) {
+        Content content = contentMapper.selectById(contentId);
+        if (content == null) {
+            throw BusinessException.notFound("内容不存在");
+        }
+        return ContentBriefInfo.builder()
+                .id(content.getId())
+                .authorId(content.getAuthorId())
+                .title(content.getTitle())
+                .build();
+    }
+
     @Transactional
     public ContentResponse createContent(CreateContentRequest request, Long authorId) {
         Content content = new Content();
@@ -164,15 +162,10 @@ public class ContentService {
         content.setStatus(1);
         content.setCreateTime(LocalDateTime.now());
         content.setUpdateTime(LocalDateTime.now());
-
         contentMapper.insert(content);
-
         return convertToResponse(content, authorId);
     }
 
-    /**
-     * 更新内容
-     */
     @Transactional
     public ContentResponse updateContent(Long contentId, CreateContentRequest request, Long userId) {
         Content content = contentMapper.selectById(contentId);
@@ -182,22 +175,16 @@ public class ContentService {
         if (!content.getAuthorId().equals(userId)) {
             throw BusinessException.forbidden("无权修改此内容");
         }
-
         content.setTitle(request.getTitle());
         content.setSummary(request.getSummary());
         content.setContent(request.getContent());
         content.setCoverImage(request.getCoverImage());
         content.setCategoryId(request.getCategoryId());
         content.setUpdateTime(LocalDateTime.now());
-
         contentMapper.updateById(content);
-
         return convertToResponse(content, userId);
     }
 
-    /**
-     * 删除内容
-     */
     @Transactional
     public void deleteContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
@@ -207,142 +194,101 @@ public class ContentService {
         if (!content.getAuthorId().equals(userId)) {
             throw BusinessException.forbidden("无权删除此内容");
         }
-
-        // 软删除
         content.setStatus(0);
         content.setUpdateTime(LocalDateTime.now());
         contentMapper.updateById(content);
     }
 
-    /**
-     * 点赞内容（DB 优先，Redis 作为缓存，保证数据一致性）
-     */
     @Transactional
     public void likeContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
-
-        // 先更新 DB（原子操作），保证数据一致性
         int rows = contentMapper.incrementLikeCount(contentId);
         if (rows == 0) {
             throw BusinessException.error("点赞失败");
         }
-
-        // DB 成功后再更新 Redis，Redis 失败不影响主流程
         try {
-            DefaultRedisScript<Long> script = new DefaultRedisScript<>(LIKE_LUA_SCRIPT, Long.class);
-            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+            redisTemplate.execute(new DefaultRedisScript<>(LIKE_LUA_SCRIPT, Long.class),
+                    Collections.singletonList(key), userIdStr);
         } catch (Exception e) {
-            log.warn("点赞 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+            log.warn("点赞 Redis 缓存更新失败: contentId={}, userId={}", contentId, userId, e);
         }
-
-        // 发送通知给内容作者
-        try {
-            if (!content.getAuthorId().equals(userId)) {
+        if (!content.getAuthorId().equals(userId)) {
+            try {
                 notificationServiceClient.createNotification("like", "有人赞了你的内容",
                         "你的内容被点赞了", content.getAuthorId(), contentId, "content");
+            } catch (Exception e) {
+                log.warn("发送点赞通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
             }
-        } catch (Exception e) {
-            log.warn("发送点赞通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
         }
     }
 
-    /**
-     * 取消点赞（DB 优先，Redis 作为缓存）
-     */
     @Transactional
     public void unlikeContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-
         String key = CONTENT_LIKES_KEY + contentId;
         String userIdStr = userId.toString();
-
-        // 先更新 DB
         contentMapper.decrementLikeCount(contentId);
-
-        // 再更新 Redis
         try {
-            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLIKE_LUA_SCRIPT, Long.class);
-            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+            redisTemplate.execute(new DefaultRedisScript<>(UNLIKE_LUA_SCRIPT, Long.class),
+                    Collections.singletonList(key), userIdStr);
         } catch (Exception e) {
-            log.warn("取消点赞 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+            log.warn("取消点赞 Redis 缓存更新失败: contentId={}, userId={}", contentId, userId, e);
         }
     }
 
-    /**
-     * 收藏内容（DB 优先，Redis 作为缓存）
-     */
     @Transactional
     public void favoriteContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
-
-        // 先更新 DB
         int rows = contentMapper.incrementFavoriteCount(contentId);
         if (rows == 0) {
             throw BusinessException.error("收藏失败");
         }
-
-        // 再更新 Redis
         try {
-            DefaultRedisScript<Long> script = new DefaultRedisScript<>(FAVORITE_LUA_SCRIPT, Long.class);
-            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+            redisTemplate.execute(new DefaultRedisScript<>(FAVORITE_LUA_SCRIPT, Long.class),
+                    Collections.singletonList(key), userIdStr);
         } catch (Exception e) {
-            log.warn("收藏 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+            log.warn("收藏 Redis 缓存更新失败: contentId={}, userId={}", contentId, userId, e);
         }
-
-        // 发送通知给内容作者
-        try {
-            if (!content.getAuthorId().equals(userId)) {
+        if (!content.getAuthorId().equals(userId)) {
+            try {
                 notificationServiceClient.createNotification("favorite", "有人收藏了你的内容",
                         "你的内容被收藏了", content.getAuthorId(), contentId, "content");
+            } catch (Exception e) {
+                log.warn("发送收藏通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
             }
-        } catch (Exception e) {
-            log.warn("发送收藏通知失败: contentId={}, authorId={}", contentId, content.getAuthorId(), e);
         }
     }
 
-    /**
-     * 取消收藏（DB 优先，Redis 作为缓存）
-     */
     @Transactional
     public void unfavoriteContent(Long contentId, Long userId) {
         Content content = contentMapper.selectById(contentId);
         if (content == null || content.getStatus() != 1) {
             throw BusinessException.notFound("内容不存在");
         }
-
         String key = CONTENT_FAVORITES_KEY + contentId;
         String userIdStr = userId.toString();
-
-        // 先更新 DB
         contentMapper.decrementFavoriteCount(contentId);
-
-        // 再更新 Redis
         try {
-            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNFAVORITE_LUA_SCRIPT, Long.class);
-            redisTemplate.execute(script, Collections.singletonList(key), userIdStr);
+            redisTemplate.execute(new DefaultRedisScript<>(UNFAVORITE_LUA_SCRIPT, Long.class),
+                    Collections.singletonList(key), userIdStr);
         } catch (Exception e) {
-            log.warn("取消收藏 Redis 缓存更新失败，不影响主流程: contentId={}, userId={}", contentId, userId, e);
+            log.warn("取消收藏 Redis 缓存更新失败: contentId={}, userId={}", contentId, userId, e);
         }
     }
 
-    /**
-     * 获取推荐内容
-     */
     public Page<ContentResponse> getRecommendContent(Integer page, Integer pageSize, Long currentUserId) {
         ContentListParams params = new ContentListParams();
         params.setPage(page);
@@ -351,9 +297,6 @@ public class ContentService {
         return getContentList(params, currentUserId);
     }
 
-    /**
-     * 获取热门内容
-     */
     public Page<ContentResponse> getHotContent(Integer page, Integer pageSize, Long currentUserId) {
         ContentListParams params = new ContentListParams();
         params.setPage(page);
@@ -362,9 +305,6 @@ public class ContentService {
         return getContentList(params, currentUserId);
     }
 
-    /**
-     * 更新评论数（使用原子 SQL 防止丢失更新）
-     */
     public void updateCommentCount(Long contentId, Integer increment) {
         int rows = contentMapper.updateCommentCount(contentId, increment);
         if (rows == 0) {
@@ -372,67 +312,46 @@ public class ContentService {
         }
     }
 
-    /**
-     * 获取内容总数
-     */
     public Long getContentCount() {
         LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Content::getStatus, 1);
         return contentMapper.selectCount(wrapper);
     }
 
-    /**
-     * 获取总点赞数
-     */
     public Long getTotalLikes() {
-        // 从数据库汇总所有内容的点赞数
-        LambdaQueryWrapper<Content> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Content::getStatus, 1);
-        wrapper.select(Content::getLikeCount);
-        return contentMapper.selectList(wrapper).stream()
-                .mapToLong(Content::getLikeCount)
-                .sum();
+        // 使用 SQL SUM 聚合，避免加载全部数据到内存
+        return contentMapper.sumLikeCount();
     }
 
-    /**
-     * 转换为响应对象
-     */
-    private ContentResponse convertToResponse(Content content, Long currentUserId) {
-        // 检查当前用户是否点赞和收藏
-        boolean isLiked = false;
-        boolean isFavorited = false;
-
-        if (currentUserId != null) {
-            String likeKey = CONTENT_LIKES_KEY + content.getId();
-            String favoriteKey = CONTENT_FAVORITES_KEY + content.getId();
-            isLiked = Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(likeKey, currentUserId.toString()));
-            isFavorited = Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(favoriteKey, currentUserId.toString()));
+    private Map<Long, UserPublicInfo> batchGetUserInfo(List<Long> userIds) {
+        if (userIds.isEmpty()) return Collections.emptyMap();
+        Map<Long, UserPublicInfo> map = new HashMap<>();
+        for (Long uid : userIds) {
+            try {
+                Result<UserPublicInfo> result = userServiceClient.getUserDetail(uid);
+                if (result != null && result.getData() != null) {
+                    map.put(uid, result.getData());
+                }
+            } catch (Exception e) {
+                log.warn("获取用户信息失败: userId={}", uid, e);
+            }
         }
+        return map;
+    }
+
+    private ContentResponse convertToResponse(Content content, Long currentUserId,
+                                               Set<String> likedIds, Set<String> favIds,
+                                               Map<Long, UserPublicInfo> authorMap) {
+        boolean isLiked = likedIds.contains(content.getId().toString());
+        boolean isFavorited = favIds.contains(content.getId().toString());
 
         ContentResponse.AuthorInfo authorInfo = null;
         if (content.getAuthorId() != null) {
-            String authorName = content.getAuthorName();
-            String authorAvatar = content.getAuthorAvatar();
-
-            // 如果作者信息未填充，通过 Feign 获取
-            if (authorName == null) {
-                try {
-                    Result<UserPublicInfo> userResult = userServiceClient.getUserDetail(content.getAuthorId());
-                    if (userResult != null && userResult.getData() != null) {
-                        UserPublicInfo userInfo = userResult.getData();
-                        authorName = userInfo.getUsername();
-                        authorAvatar = userInfo.getAvatar();
-                    }
-                } catch (Exception e) {
-                    log.warn("获取作者信息失败: authorId={}", content.getAuthorId(), e);
-                    authorName = "未知用户";
-                }
-            }
-
+            UserPublicInfo userInfo = authorMap.get(content.getAuthorId());
             authorInfo = ContentResponse.AuthorInfo.builder()
                     .id(content.getAuthorId())
-                    .username(authorName != null ? authorName : "未知用户")
-                    .avatar(authorAvatar)
+                    .username(userInfo != null ? userInfo.getUsername() : "未知用户")
+                    .avatar(userInfo != null ? userInfo.getAvatar() : null)
                     .build();
         }
 
@@ -452,5 +371,31 @@ public class ContentService {
                 .createTime(content.getCreateTime())
                 .updateTime(content.getUpdateTime())
                 .build();
+    }
+
+    private ContentResponse convertToResponse(Content content, Long currentUserId) {
+        Set<String> likedIds = new HashSet<>();
+        Set<String> favIds = new HashSet<>();
+        if (currentUserId != null) {
+            String userIdStr = currentUserId.toString();
+            if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(CONTENT_LIKES_KEY + content.getId(), userIdStr))) {
+                likedIds.add(content.getId().toString());
+            }
+            if (Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(CONTENT_FAVORITES_KEY + content.getId(), userIdStr))) {
+                favIds.add(content.getId().toString());
+            }
+        }
+        Map<Long, UserPublicInfo> authorMap = new HashMap<>();
+        if (content.getAuthorId() != null) {
+            try {
+                Result<UserPublicInfo> result = userServiceClient.getUserDetail(content.getAuthorId());
+                if (result != null && result.getData() != null) {
+                    authorMap.put(content.getAuthorId(), result.getData());
+                }
+            } catch (Exception e) {
+                log.warn("获取作者信息失败: authorId={}", content.getAuthorId(), e);
+            }
+        }
+        return convertToResponse(content, currentUserId, likedIds, favIds, authorMap);
     }
 }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.shuaiqi.content.entity.Content;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 /**
@@ -47,4 +48,10 @@ public interface ContentMapper extends BaseMapper<Content> {
      */
     @Update("UPDATE content SET view_count = view_count + 1 WHERE id = #{contentId} AND status = 1")
     int incrementViewCount(@Param("contentId") Long contentId);
+
+    /**
+     * 汇总所有内容的点赞数（使用SQL聚合，避免加载全部数据到内存）
+     */
+    @Select("SELECT COALESCE(SUM(like_count), 0) FROM content WHERE status = 1")
+    Long sumLikeCount();
 }

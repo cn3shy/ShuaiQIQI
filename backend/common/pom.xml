@@ -19,32 +19,19 @@
     <description>公共Web模块 - 包含web相关配置，适用于servlet服务</description>
 
     <dependencies>
-        <!-- 依赖公共核心模块 -->
         <dependency>
             <groupId>com.shuaiqi</groupId>
             <artifactId>common-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-
-        <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <!-- Hutool -->
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
         </dependency>
-
-        <!-- Swagger -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

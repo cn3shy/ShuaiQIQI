@@ -39,7 +39,7 @@ public class UserController {
      */
     @PutMapping("/info")
     public Result<UserInfoResponse> updateUserInfo(
-            @RequestBody UpdateUserRequest request,
+            @Validated @RequestBody UpdateUserRequest request,
             HttpServletRequest httpRequest) {
         Long userId = RequestUtils.getUserIdFromRequest(httpRequest);
         UserInfoResponse userInfo = userService.updateUserInfo(userId, request);

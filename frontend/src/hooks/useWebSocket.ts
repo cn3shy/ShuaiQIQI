@@ -27,28 +27,19 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const connect = useCallback(() => {
     if (!userId) return;
-
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-
     const token = localStorage.getItem('token');
     if (!token) return;
+    if (wsRef.current) wsRef.current.close();
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/notification/${userId}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/notification`;
 
     try {
       const ws = new WebSocket(wsUrl, [token]);
-
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;
-        if (!isUnmountedRef.current) {
-          setIsConnected(true);
-        }
-        console.log('WebSocket 连接成功');
+        if (!isUnmountedRef.current) setIsConnected(true);
       };
-
       ws.onmessage = (event) => {
         try {
           const notification: Notification = JSON.parse(event.data);
@@ -60,37 +51,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
           console.error('解析通知消息失败:', error);
         }
       };
-
       ws.onclose = () => {
-        if (!isUnmountedRef.current) {
-          setIsConnected(false);
-        }
-        console.log('WebSocket 连接关闭');
-
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-        }
-
+        if (!isUnmountedRef.current) setIsConnected(false);
+        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
         const attempts = reconnectAttemptsRef.current;
         if (attempts < maxReconnectAttempts && !isUnmountedRef.current) {
           reconnectAttemptsRef.current = attempts + 1;
           const delay = getReconnectDelay(attempts);
-          console.log(`将在 ${delay}ms 后尝试重新连接 (${attempts + 1}/${maxReconnectAttempts})`);
-          reconnectTimerRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        } else if (attempts >= maxReconnectAttempts) {
-          console.warn('WebSocket 达到最大重连次数，停止重连');
+          reconnectTimerRef.current = setTimeout(() => connect(), delay);
         }
       };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket 错误:', error);
-        if (!isUnmountedRef.current) {
-          setIsConnected(false);
-        }
-      };
-
+      ws.onerror = () => { if (!isUnmountedRef.current) setIsConnected(false); };
       wsRef.current = ws;
     } catch (error) {
       console.error('WebSocket 连接失败:', error);
@@ -98,42 +69,21 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   }, [userId, onNotification, maxReconnectAttempts, getReconnectDelay]);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (!isUnmountedRef.current) {
-      setIsConnected(false);
-    }
+    if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    if (!isUnmountedRef.current) setIsConnected(false);
     reconnectAttemptsRef.current = 0;
   }, []);
 
   const send = useCallback((data: string) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(data);
-    }
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) wsRef.current.send(data);
   }, []);
 
   useEffect(() => {
     isUnmountedRef.current = false;
-    if (userId) {
-      connect();
-    }
-
-    return () => {
-      isUnmountedRef.current = true;
-      disconnect();
-    };
+    if (userId) connect();
+    return () => { isUnmountedRef.current = true; disconnect(); };
   }, [userId, connect, disconnect]);
 
-  return {
-    isConnected,
-    connect,
-    disconnect,
-    send,
-  };
+  return { isConnected, connect, disconnect, send };
 };

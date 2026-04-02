@@ -9,7 +9,6 @@ import com.shuaiqi.comment.entity.Comment;
 import com.shuaiqi.comment.feign.ContentServiceClient;
 import com.shuaiqi.comment.feign.NotificationServiceClient;
 import com.shuaiqi.comment.mapper.CommentMapper;
-import com.shuaiqi.comment.feign.ContentServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -96,14 +95,16 @@ public class CommentService {
      */
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, Long userId) {
-        // 验证内容是否存在
+        Long contentAuthorId = null;
         try {
-            contentServiceClient.getContentDetail(request.getContentId());
+            var contentResult = contentServiceClient.getContentBrief(request.getContentId());
+            if (contentResult != null && contentResult.getData() != null) {
+                contentAuthorId = contentResult.getData().getAuthorId();
+            }
         } catch (Exception e) {
             throw BusinessException.notFound("内容不存在，无法评论");
         }
 
-        // 如果是回复评论，验证父评论是否存在且属于同一内容
         if (request.getParentId() != null) {
             Comment parentComment = commentMapper.selectById(request.getParentId());
             if (parentComment == null || parentComment.getStatus() != 1) {
@@ -126,20 +127,20 @@ public class CommentService {
 
         commentMapper.insert(comment);
 
-        // 更新内容评论数（失败时记录日志，后续可通过定时任务补偿）
         try {
             contentServiceClient.updateCommentCount(request.getContentId(), 1);
         } catch (Exception e) {
             log.error("更新内容评论数失败，已记录补偿日志: contentId={}, commentId={}", request.getContentId(), comment.getId(), e);
         }
 
-        // 发送通知给内容作者
-        try {
-            notificationServiceClient.createNotification("comment", "有人评论了你的内容",
-                    request.getContent().length() > 50 ? request.getContent().substring(0, 50) + "..." : request.getContent(),
-                    userId, comment.getId(), "comment");
-        } catch (Exception e) {
-            log.warn("发送评论通知失败: contentId={}, commentId={}", request.getContentId(), comment.getId(), e);
+        if (contentAuthorId != null && !contentAuthorId.equals(userId)) {
+            try {
+                notificationServiceClient.createNotification("comment", "有人评论了你的内容",
+                        request.getContent().length() > 50 ? request.getContent().substring(0, 50) + "..." : request.getContent(),
+                        contentAuthorId, comment.getId(), "comment");
+            } catch (Exception e) {
+                log.warn("发送评论通知失败: contentId={}, authorId={}", request.getContentId(), contentAuthorId, e);
+            }
         }
 
         return convertToResponse(comment, userId);

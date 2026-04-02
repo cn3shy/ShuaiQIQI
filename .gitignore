@@ -1,1 +1,53 @@
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+target/
+!/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
 nul
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# Uploads
+uploads/
+
+# Docker
+.dockerignore
+
+# Build
+frontend/dist/
+frontend/build/
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+coverage/
+.nyc_output/
