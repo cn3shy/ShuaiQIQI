@@ -177,6 +177,15 @@ services:
       - mysql
       - redis
 
+  # Zipkin 链路追踪
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: shuaiqi-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - shuaiqi-network
+
   # Frontend 前端
   frontend:
     build:
