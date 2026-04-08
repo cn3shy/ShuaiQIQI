@@ -1,0 +1,22 @@
+<scroll-view class="scrollarea" scroll-y type="list" wx:if="{{userInfo}}">
+  <view class="profile-header">
+    <image class="avatar" src="{{userInfo.avatarUrl}}"/>
+    <text class="nickname">{{userInfo.nickName}}</text>
+    <text class="bio" wx:if="{{userInfo.bio}}">{{userInfo.bio}}</text>
+  </view>
+  <view class="content-list">
+    <text class="section-title">TA的作品</text>
+    <view class="content-item" wx:for="{{contentList}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <view class="info">
+        <text class="title">{{item.title}}</text>
+        <text class="summary">{{item.summary}}</text>
+        <view class="meta">
+          <text class="count">{{item.likeCount}} 赞 · {{item.commentCount}} 评论</text>
+        </view>
+      </view>
+      <image class="cover" src="{{item.coverImage}}" mode="aspectFill" wx:if="{{item.coverImage}}"/>
+    </view>
+    <view class="empty" wx:if="{{contentList.length === 0}}">暂无作品</view>
+  </view>
+</scroll-view>
+<view class="loading" wx:if="{{loading}}">加载中...</view>

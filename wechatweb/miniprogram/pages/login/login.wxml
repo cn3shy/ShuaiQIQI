@@ -1,0 +1,10 @@
+<view class="login-container">
+  <view class="title">登录</view>
+  <view class="form">
+    <input class="input" placeholder="用户名" bindinput="onUsernameInput" value="{{username}}"/>
+    <input class="input" type="password" placeholder="密码" bindinput="onPasswordInput" value="{{password}}"/>
+    <button class="btn" bindtap="handleLogin" loading="{{loading}}">登录</button>
+    <button class="btn btn-wx" bindtap="wxLogin">微信一键登录</button>
+    <view class="register-link" bindtap="goToRegister">没有账号？立即注册</view>
+  </view>
+</view>

@@ -1,0 +1,10 @@
+<view class="register-container">
+  <view class="title">注册</view>
+  <view class="form">
+    <input class="input" placeholder="用户名" bindinput="onUsernameInput" value="{{username}}"/>
+    <input class="input" type="password" placeholder="密码" bindinput="onPasswordInput" value="{{password}}"/>
+    <input class="input" type="password" placeholder="确认密码" bindinput="onConfirmPasswordInput" value="{{confirmPassword}}"/>
+    <button class="btn" bindtap="handleRegister" loading="{{loading}}">注册</button>
+    <view class="login-link" bindtap="goToLogin">已有账号？立即登录</view>
+  </view>
+</view>

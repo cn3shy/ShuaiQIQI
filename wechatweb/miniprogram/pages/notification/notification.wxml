@@ -1,0 +1,16 @@
+<scroll-view class="scrollarea" scroll-y type="list">
+  <view class="notification-list">
+    <view class="notification-item {{!item.isRead ? 'unread' : ''}}" wx:for="{{notifications}}" wx:key="id" bindtap="onTapItem" data-id="{{item.id}}">
+      <view class="icon-wrapper">
+        <text class="icon">{{item.type === 'like' ? '❤️' : item.type === 'comment' ? '💬' : item.type === 'favorite' ? '⭐' : '👤'}}</text>
+      </view>
+      <view class="content">
+        <text class="title">{{item.title}}</text>
+        <text class="desc">{{item.content}}</text>
+        <text class="time">{{item.createTime}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="loading" wx:if="{{loading}}">加载中...</view>
+  <view class="empty" wx:if="{{!loading && notifications.length === 0}}">暂无通知</view>
+</scroll-view>
