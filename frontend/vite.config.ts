@@ -40,6 +40,9 @@ export default defineConfig({
       '@styles': path.resolve(__dirname, './src/styles'),
     },
   },
+  build: {
+    minify: 'esbuild',
+  },
   css: {
     preprocessorOptions: {
       less: {
