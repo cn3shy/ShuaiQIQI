@@ -37,7 +37,9 @@ public class WebSocketServer {
     public void onOpen(Session session, EndpointConfig config) {
         String userId = (String) config.getUserProperties().get("userId");
         if (userId == null) {
-            try { session.close(); } catch (IOException ignored) {}
+            try { session.close(); } catch (IOException e) {
+                log.warn("关闭未认证 WebSocket 连接失败: {}", e.getMessage());
+            }
             return;
         }
         Session oldSession = SESSION_MAP.put(userId, session);

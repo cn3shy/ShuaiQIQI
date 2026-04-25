@@ -24,11 +24,6 @@ const NotificationBell: React.FC = () => {
     onNotification: handleNewNotification,
   });
 
-  useWebSocket({
-    userId: user?.id,
-    onNotification: handleNewNotification,
-  });
-
   useEffect(() => {
     let mounted = true;
     const fetchInitial = async () => {
