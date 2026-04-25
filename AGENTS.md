@@ -43,11 +43,11 @@ shuaiqi-qi/
 ### 前端 (frontend/)
 
 ```bash
-pnpm install              # 安装依赖（必须使用 pnpm）
-pnpm dev                  # 开发服务器 (端口 3000)
-pnpm build                # 生产构建 (tsc -b && vite build)
-pnpm lint                 # ESLint 检查
-pnpm preview              # 预览构建结果
+npm install              # 安装依赖
+npm run dev               # 开发服务器 (端口 3000)
+npm run build             # 生产构建 (tsc -b && vite build)
+npm run lint              # ESLint 检查
+npm run preview            # 预览构建结果
 ```
 
 **前端测试**: 未配置测试框架。推荐 Vitest + React Testing Library。
@@ -169,7 +169,7 @@ export const getContentList = (params) => request.get<Content[]>('/content/list'
 
 ## 注意事项
 
-1. **包管理器**: 前端必须使用 `pnpm`
+1. **包管理器**: 前端使用 `npm`
 2. **中文注释**: 保持一致性
 3. **响应式**: Ant Design Grid (xs/sm/md/lg/xl/xxl)，移动端断点 768px
 4. **代理**: `/api` → `http://localhost:8080`

@@ -5,20 +5,17 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# 安装 pnpm
-RUN npm install -g pnpm
-
 # 复制依赖文件
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile
+RUN npm ci
 
 # 复制源代码
 COPY . .
 
 # 构建
-RUN pnpm build
+RUN npm run build
 
 # Stage 2: Production
 FROM nginx:alpine

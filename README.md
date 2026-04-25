@@ -95,7 +95,7 @@ shuaiqi-qi/
 ### 环境要求
 
 - Node.js 18+
-- pnpm 8+
+- npm 8+
 - Java 17
 - Maven 3.6+
 - MySQL 8.0
@@ -149,8 +149,8 @@ cd notification-service && mvn spring-boot:run  # 端口 8085
 
 ```bash
 cd frontend
-pnpm install
-pnpm dev    # 端口 3000
+npm install
+npm run dev    # 端口 3000
 ```
 
 ## 页面路由
