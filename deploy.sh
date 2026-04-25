@@ -17,26 +17,27 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
-echo "步骤 1: 构建后端服务..."
-cd backend
-mvn clean package -DskipTests
-cd ..
+# 检查 JWT_SECRET_KEY
+if [ -z "$JWT_SECRET_KEY" ]; then
+    echo "警告: JWT_SECRET_KEY 未设置，使用默认密钥（生产环境请设置强密钥）"
+    export JWT_SECRET_KEY="shuaiqi-secret-key-change-in-production"
+fi
 
-echo "步骤 2: 构建并启动所有服务..."
+echo "步骤 1: 构建并启动所有服务..."
 docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
 
-echo "步骤 3: 等待服务启动..."
-sleep 30
+echo "步骤 2: 等待服务启动..."
+sleep 20
 
-echo "步骤 4: 检查服务状态..."
+echo "步骤 3: 检查服务状态..."
 docker-compose ps
 
 echo "========================================="
 echo "  部署完成！"
 echo "========================================="
 echo "前端地址: http://localhost:3000"
-echo "API 网关: http://localhost:8080"
-echo "Nacos 控制台: http://localhost:8848/nacos"
+echo "后端 API: http://localhost:8080"
+echo "Swagger 文档: http://localhost:8080/swagger-ui.html"
 echo "========================================="

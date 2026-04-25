@@ -5,7 +5,7 @@
 ## 项目结构
 
 ```
-shuaiqi-qi/
+ShuaiQIQI/
 ├── frontend/                    # React 前端
 │   ├── src/
 │   │   ├── components/          # 通用组件
@@ -20,18 +20,19 @@ shuaiqi-qi/
 │   │   └── utils/               # 工具函数
 │   ├── Dockerfile
 │   └── nginx.conf
-├── backend/                     # Spring Boot 后端
-│   ├── common/                  # 公共模块
-│   ├── gateway/                 # API 网关 (端口 8080)
-│   ├── auth-service/            # 认证服务 (端口 8081)
-│   ├── user-service/            # 用户服务 (端口 8082)
-│   ├── content-service/         # 内容服务 (端口 8083)
-│   ├── comment-service/         # 评论服务 (端口 8084)
-│   ├── notification-service/    # 通知服务 (端口 8085)
-│   └── sql/
-│       └── init.sql             # 数据库初始化脚本
-├── docker-compose.yml           # Docker 编排
-└── deploy.sh                    # 部署脚本
+├── backend/                     # Spring Boot 单体应用
+│   └── src/main/java/com/shuaiqi/
+│       ├── controller/          # REST 控制器
+│       ├── service/             # 业务服务
+│       ├── mapper/              # MyBatis Plus Mapper
+│       ├── entity/               # 实体类
+│       ├── dto/                 # 数据传输对象
+│       ├── websocket/            # WebSocket 服务端
+│       ├── common/              # 公共组件
+│       └── config/              # Spring 配置类
+├── sql/
+│   └── init.sql                 # 数据库初始化脚本
+└── docker-compose.yml           # Docker 编排
 ```
 
 ## 功能特性
@@ -68,7 +69,6 @@ shuaiqi-qi/
 - 数据仪表盘
 - 内容管理
 - 用户管理
-- RBAC 权限控制
 
 ## 技术栈
 
@@ -81,14 +81,13 @@ shuaiqi-qi/
 - **HTTP 客户端**: Axios
 
 ### 后端
-- **框架**: Spring Boot 3.2
-- **微服务**: Spring Cloud 2023.0
-- **注册中心**: Nacos 2.3
+- **框架**: Spring Boot 3.2 (单体)
 - **ORM**: MyBatis Plus 3.5
 - **数据库**: MySQL 8.0
 - **缓存**: Redis 7
 - **认证**: JWT
-- **API 文档**: Swagger 3
+- **实时**: WebSocket
+- **API 文档**: Swagger 3 (springdoc-openapi)
 
 ## 快速开始
 
@@ -108,13 +107,16 @@ shuaiqi-qi/
 git clone https://github.com/yourusername/shuaiqi-qi.git
 cd shuaiqi-qi
 
+# 设置 JWT 密钥（生产环境请更换）
+export JWT_SECRET_KEY=your-secret-key-at-least-32-characters
+
 # 启动所有服务
 docker-compose up -d
 
 # 访问应用
 # 前端: http://localhost:3000
-# API 网关: http://localhost:8080
-# Nacos 控制台: http://localhost:8848
+# 后端 API: http://localhost:8080
+# Swagger 文档: http://localhost:8080/swagger-ui.html
 ```
 
 ### 方式二：本地开发
@@ -122,28 +124,28 @@ docker-compose up -d
 #### 1. 数据库初始化
 
 ```bash
+# 启动 MySQL 和 Redis（确保可访问）
 # 创建数据库并导入初始数据
 mysql -u root -p < backend/sql/init.sql
 ```
 
-#### 2. 启动后端服务
+#### 2. 启动后端
 
 ```bash
-# 启动 Nacos（需先安装）
-# 启动 MySQL 和 Redis
-
-# 构建后端
 cd backend
-mvn clean install
 
-# 启动各个服务（分别在不同终端）
-cd gateway && mvn spring-boot:run          # 端口 8080
-cd auth-service && mvn spring-boot:run     # 端口 8081
-cd user-service && mvn spring-boot:run     # 端口 8082
-cd content-service && mvn spring-boot:run  # 端口 8083
-cd comment-service && mvn spring-boot:run  # 端口 8084
-cd notification-service && mvn spring-boot:run  # 端口 8085
+# 设置 JWT 密钥（必须）
+export JWT_SECRET_KEY=your-secret-key-at-least-32-characters
+
+# 构建并启动
+mvn clean package
+java -jar target/shuaiqi-backend-1.0.0-SNAPSHOT.jar
+
+# 或使用 Maven 运行
+mvn spring-boot:run
 ```
+
+后端启动后运行在 `http://localhost:8080`
 
 #### 3. 启动前端
 
@@ -181,7 +183,7 @@ npm run dev    # 端口 3000
 
 ## API 接口
 
-所有 API 通过网关统一访问：`http://localhost:8080/api`
+所有 API 通过统一入口访问：`http://localhost:8080/api`
 
 | 模块 | 路径前缀 | 说明 |
 |------|---------|------|
@@ -190,6 +192,14 @@ npm run dev    # 端口 3000
 | 内容 | `/api/content/` | 内容 CRUD、点赞、收藏、分类 |
 | 评论 | `/api/comment/` | 评论 CRUD、点赞 |
 | 通知 | `/api/notification/` | 通知列表、标记已读、未读计数 |
+
+### WebSocket 实时通知
+
+```
+ws://localhost:8080/ws/notification
+```
+
+连接时需在 `Sec-WebSocket-Protocol` 头携带有效 JWT token。
 
 ## 数据库设计
 
@@ -204,7 +214,29 @@ npm run dev    # 端口 3000
 | `comment` | 评论表 |
 | `notification` | 通知表 |
 
-详细结构见 `backend/sql/init.sql`
+详细结构见 `sql/init.sql`
+
+## 环境变量
+
+### 后端
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `JWT_SECRET_KEY` | （必填） | JWT 密钥，最少 32 字符 |
+| `DB_HOST` | localhost | MySQL 主机 |
+| `DB_PORT` | 3306 | MySQL 端口 |
+| `DB_USERNAME` | root | MySQL 用户名 |
+| `DB_PASSWORD` | root | MySQL 密码 |
+| `REDIS_HOST` | localhost | Redis 主机 |
+| `REDIS_PORT` | 6379 | Redis 端口 |
+| `REDIS_PASSWORD` | （空） | Redis 密码 |
+| `SWAGGER_ENABLED` | false | 启用 Swagger UI |
+
+### Docker Compose
+
+| 变量 | 说明 |
+|------|------|
+| `JWT_SECRET_KEY` | JWT 密钥（必填，生产环境请使用强密钥） |
 
 ## 开发规范
 

@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Full-stack social media platform: React 19 frontend + Spring Boot 3.2 microservices backend + WeChat mini-program.
+Full-stack social media platform: React 19 frontend + Spring Boot 3.2 monolith backend + WeChat mini-program.
 
 ```
-shuaiqi-qi/
+ShuaiQIQI/
 ├── frontend/                 # React 19 + Vite 8 + TypeScript 5.9
-├── backend/                 # Spring Boot 3.2 + Spring Cloud microservices
-├── wechatweb/              # WeChat mini-program (Glass-Easel)
-├── docker-compose.yml       # All services orchestration
-└── AGENTS.md               # Chinese AI assistant guidelines (detailed)
+├── backend/                  # Spring Boot 3.2 monolith (port 8080)
+├── wechatweb/                # WeChat mini-program (Glass-Easel)
+├── docker-compose.yml        # All services orchestration
+└── AGENTS.md                # Chinese AI assistant guidelines (detailed)
 ```
 
 ## Build Commands
@@ -28,10 +28,9 @@ npm run preview            # Preview build
 
 ### Backend (backend/)
 ```bash
-mvn clean install         # Build all modules
-mvn test                  # Run all tests
-mvn test -pl user-service # Run single module tests
-mvn spring-boot:run -pl gateway  # Run single service
+mvn clean package         # Build monolith jar
+mvn test                  # Run tests
+mvn spring-boot:run        # Run on port 8080
 ```
 
 ### WeChat Mini-Program
@@ -46,16 +45,16 @@ Open `wechatweb/` in WeChat DevTools. Build via IDE, no CLI.
 - **HTTP**: Axios with interceptors + token refresh
 - **UI**: Ant Design 6 (Chinese locale)
 
-### Backend Microservices
-- **Gateway** (8080): API gateway, all requests route through here
-- **Auth Service** (8081): JWT authentication, token refresh
-- **User Service** (8082): User profiles, follow system
-- **Content Service** (8083): Posts, likes, favorites
-- **Comment Service** (8084): Nested comments
-- **Notification Service** (8085): WebSocket real-time notifications
+### Backend Monolith (port 8080)
+Single Spring Boot application containing all modules:
+- `/api/auth` — JWT authentication (register/login/logout/refresh/forgot-password)
+- `/api/user` — User profiles, follow system, avatar upload
+- `/api/content` — Posts, likes, favorites, categories
+- `/api/comment` — Nested comments, likes
+- `/api/notification` — Notifications, WebSocket real-time push
+- `/ws/notification` — WebSocket endpoint for real-time notifications
 
 ### Data Layer
-- **Registry**: Nacos 2.3
 - **Database**: MySQL 8.0
 - **Cache**: Redis 7
 - **ORM**: MyBatis Plus 3.5
@@ -95,8 +94,9 @@ Open `wechatweb/` in WeChat DevTools. Build via IDE, no CLI.
 
 ### Backend
 - Unified response: `Result<T>`
-- Package structure: `com.shuaiqi.{service}.{module}`
+- Package structure: `com.shuaiqi.{controller|service|mapper|entity|dto|common}`
 - Lombok for boilerplate
+- JWT_SECRET_KEY env var required at startup
 
 ## Default Credentials
 
@@ -109,3 +109,4 @@ Admin: `admin` / `admin123`
 3. Chinese comments used throughout codebase
 4. Vite proxy config: `/api` -> `http://localhost:8080`
 5. WeChat mini-program uses `Component()` constructor, not `Page()`
+6. Backend requires `JWT_SECRET_KEY` env var (min 32 chars) to start

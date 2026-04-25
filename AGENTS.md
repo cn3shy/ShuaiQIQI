@@ -4,10 +4,10 @@
 
 ## 项目概述
 
-前后端分离全栈项目：React 19 前端 + Spring Boot 3.2 微服务后端 + 微信小程序用户端。
+前后端分离全栈项目：React 19 前端 + Spring Boot 3.2 单体后端 + 微信小程序用户端。
 
 ```
-shuaiqi-qi/
+ShuaiQIQI/
 ├── frontend/          # React 19 + TypeScript 5.9 + Vite 8
 │   └── src/
 │       ├── components/    # 可复用组件 (ContentCard, ErrorBoundary, etc.)
@@ -19,15 +19,16 @@ shuaiqi-qi/
 │       ├── hooks/         # 自定义 Hooks
 │       ├── types/         # TypeScript 类型定义
 │       └── utils/         # 工具函数
-├── backend/           # Spring Boot 3.2 + Spring Cloud 2023 + JDK 17
-│   ├── gateway/           # API 网关 (8080)
-│   ├── auth-service/      # 认证服务 (8081)
-│   ├── user-service/      # 用户服务 (8082)
-│   ├── content-service/   # 内容服务 (8083)
-│   ├── comment-service/   # 评论服务 (8084)
-│   ├── notification-service/ # 通知服务 (8085)
-│   ├── common/            # 公共模块
-│   └── common-core/       # 核心公共模块 (Result, 异常处理)
+├── backend/           # Spring Boot 3.2 单体应用 (JDK 17, 端口 8080)
+│   └── src/main/java/com/shuaiqi/
+│       ├── controller/    # REST 控制器 (auth/user/content/comment/notification)
+│       ├── service/      # 业务服务
+│       ├── mapper/       # MyBatis Plus Mapper
+│       ├── entity/       # 实体类
+│       ├── dto/          # 数据传输对象
+│       ├── websocket/    # WebSocket 服务端
+│       ├── common/       # 公共组件 (异常/Result/工具类/配置)
+│       └── config/       # Spring 配置类
 └── wechatweb/         # 微信小程序用户端 (TypeScript + Glass-Easel 渲染引擎)
     └── miniprogram/
         ├── pages/             # 页面 (index/discover/notification/profile/login/register/content-detail/content-create/user-profile/settings)
@@ -55,11 +56,9 @@ npm run preview            # 预览构建结果
 ### 后端 (backend/)
 
 ```bash
-mvn clean install                    # 构建所有模块
-mvn test                             # 运行所有测试
-mvn test -pl user-service            # 运行单个模块测试
-mvn test -Dtest=UserServiceTest      # 运行特定测试类
-mvn spring-boot:run -pl gateway      # 启动单个服务
+mvn clean package                          # 构建单体 jar
+mvn test                                   # 运行测试
+mvn spring-boot:run                        # 启动单体应用 (端口 8080)
 ```
 
 **后端测试**: JUnit 5 + Spring Boot Test，测试文件在 `src/test/java/`。当前无测试文件。
@@ -82,7 +81,7 @@ mvn spring-boot:run -pl gateway      # 启动单个服务
 | 状态 | Zustand 5 (persist 持久化) |
 | 路由 | React Router 7 (懒加载 + 守卫) |
 | HTTP | Axios (拦截器 + token 刷新) |
-| 后端 | Spring Boot 3.2 + Spring Cloud + JDK 17 |
+| 后端 | Spring Boot 3.2 单体 + JDK 17 |
 | ORM | MyBatis Plus 3.5.4 |
 | 工具 | Lombok, Hutool |
 | 小程序 | TypeScript + Glass-Easel 渲染引擎 + 微信原生组件 |
