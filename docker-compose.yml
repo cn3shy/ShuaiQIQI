@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mysql:
-    image: mysql:8.0
+    image: docker.1ms.run/library/mysql:8.0
     container_name: shuaiqi-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -16,14 +16,9 @@ services:
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     networks:
       - shuaiqi-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   redis:
-    image: redis:7-alpine
+    image: docker.1ms.run/library/redis:7-alpine
     container_name: shuaiqi-redis
     ports:
       - "6379:6379"
@@ -31,16 +26,12 @@ services:
       - redis-data:/data
     networks:
       - shuaiqi-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: docker.1ms.run/library/eclipse-temurin:17-jdk-alpine
     container_name: shuaiqi-backend
     ports:
       - "8080:8080"
@@ -53,18 +44,17 @@ services:
     networks:
       - shuaiqi-network
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mysql
+      - redis
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: docker.1ms.run/library/nginx:alpine
     container_name: shuaiqi-frontend
     ports:
-      - "3000:80"
+      - "80:80"
     networks:
       - shuaiqi-network
     depends_on:

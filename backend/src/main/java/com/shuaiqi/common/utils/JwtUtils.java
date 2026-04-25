@@ -2,7 +2,6 @@ package com.shuaiqi.common.utils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,34 +29,34 @@ public class JwtUtils {
         log.info("JWT密钥已初始化，长度: {}", SECRET_KEY.length());
     }
 
-    private static final long ACCESS_TOKEN_EXPIRE = 3600 * 1000L * 24;
-    private static final long REFRESH_TOKEN_EXPIRE = 3600 * 1000L * 24 * 7;
+    private static final long ACCESS_TOKEN_EXPIRE = 7 * 1000L * 24;
+    private static final long REFRESH_TOKEN_EXPIRE = 7 * 1000L * 24 * 7;
 
     public static String generateAccessToken(String userId, Map<String, Object> claims) {
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userId)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRE))
-                .signWith(KEY, SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(userId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRE))
+                .signWith(KEY, Jwts.SIG.HS256)
                 .compact();
     }
 
     public static String generateRefreshToken(String userId) {
         return Jwts.builder()
-                .setSubject(userId)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRE))
-                .signWith(KEY, SignatureAlgorithm.HS256)
+                .subject(userId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRE))
+                .signWith(KEY, Jwts.SIG.HS256)
                 .compact();
     }
 
     public static Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(KEY)
+        return Jwts.parser()
+                .verifyWith(KEY)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public static boolean validateToken(String token) {
