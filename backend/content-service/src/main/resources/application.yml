@@ -59,7 +59,7 @@ mybatis-plus:
       id-type: auto
 
 internal:
-  service-key: ${INTERNAL_SERVICE_KEY:shuaiqi-internal-key-change-in-production}
+  service-key: ${INTERNAL_SERVICE_KEY:}
 
 logging:
   pattern:

@@ -57,6 +57,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
+        // 从 JWT Token 中提取用户信息，而不是信任客户端传入的 Header
         String userId = JwtUtils.getUserId(token);
         String role = JwtUtils.getRole(token);
 
@@ -65,6 +66,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
+        // 仅设置由 JWT 解析得到的用户信息，防止 Header 注入攻击
         ServerHttpRequest modifiedRequest = request.mutate()
                 .header("X-User-Id", userId)
                 .header("X-User-Role", role != null ? role : "user")
