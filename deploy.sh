@@ -37,7 +37,7 @@ docker-compose ps
 echo "========================================="
 echo "  部署完成！"
 echo "========================================="
-echo "前端地址: http://localhost:3000"
+echo "前端地址: http://localhost"
 echo "后端 API: http://localhost:8080"
 echo "Swagger 文档: http://localhost:8080/swagger-ui.html"
 echo "========================================="
