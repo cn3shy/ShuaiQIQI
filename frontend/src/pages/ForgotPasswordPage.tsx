@@ -41,7 +41,7 @@ const ForgotPasswordPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await resetPassword(resetToken, values.newPassword);
+      await resetPassword(values.resetCode, values.newPassword, values.confirmPassword);
       message.success('密码重置成功，请重新登录');
       navigate('/login');
     } catch (error) {

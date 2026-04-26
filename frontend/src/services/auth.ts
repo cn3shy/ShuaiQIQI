@@ -24,10 +24,10 @@ export const refreshToken = (refreshToken: string) => {
 
 // 忘记密码
 export const forgotPassword = (email: string) => {
-  return request.post('/auth/forgot-password', { email });
+  return request.post<string>('/auth/forgot-password', { email });
 };
 
 // 重置密码
-export const resetPassword = (token: string, password: string) => {
-  return request.post('/auth/reset-password', { token, password });
+export const resetPassword = (token: string, newPassword: string, confirmPassword: string) => {
+  return request.post('/auth/reset-password', { token, newPassword, confirmPassword });
 };

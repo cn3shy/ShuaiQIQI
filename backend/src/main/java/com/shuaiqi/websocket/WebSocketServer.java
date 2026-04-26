@@ -2,6 +2,7 @@ package com.shuaiqi.websocket;
 
 import com.shuaiqi.common.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 使用 Spring WebSocket API 替代 Jakarta WebSocket API
  */
 @Slf4j
+@Component
 public class WebSocketServer extends TextWebSocketHandler {
 
     private static final ConcurrentHashMap<String, WebSocketSession> SESSION_MAP = new ConcurrentHashMap<>();
