@@ -69,4 +69,6 @@ htmlcov/
 *.tar.xz
 *.tar.zst
 ```
-/.claude/settings.local.json
+/.claude/*
+
+/frontend/package-lock.json
